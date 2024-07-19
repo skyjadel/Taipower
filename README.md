@@ -31,9 +31,12 @@
 ./utils
   存放我自己寫的輔助資料分析的模組
 
-./EDA.ipynb                         EDA 用 jupyter notebook
-./Test_realtime_airflow.ipynb       印出 airflow 與爬蟲抓取的最新資料，以便以肉眼檢查資料正確性
-./Power_prediction.ipynb            這個筆記本包含從天氣觀測資料預測電力資料的特徵工程，建模與評估模型部分
+./EDA.ipynb
+  EDA 用 jupyter notebook
+./Test_realtime_airflow.ipynb
+  印出 airflow 與爬蟲抓取的最新資料，以便以肉眼檢查資料正確性
+./Power_prediction.ipynb
+  這個筆記本包含從天氣觀測資料預測電力資料的特徵工程，建模與評估模型部分
 
 ## 安裝與使用方法
 提供安裝和使用你的專案的指示。包括所需的相依套件、如何設置環境、安裝步驟和執行專案的指令。
