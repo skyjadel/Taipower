@@ -12,27 +12,51 @@
 
 ## 專案結構
 ./realtime
+
   這個資料夾本身是一個 docker 專案，所以其中的 Dockerfile, docker-compose.yml, 與 requirements.txt 都是建立 docker container 所需的檔案
+  
   這個 container 的目的是執行兩個 airflow 任務，分別定期自動去爬取實時氣象觀測資料，實時氣象預報 (氣象資料每六小時爬取一次)，以及實時台電各機組發電量 (電力資料每30分鐘爬取一次)
+  
   ./realtime/src
-    當中準備了爬取中央氣象署與台灣電力公司網站的爬蟲程式
+  
+  當中準備了爬取中央氣象署與台灣電力公司網站的爬蟲程式
+    
   ./realtime/dags
-    當中準備了 airflow 所需的 dag 檔案，定義了兩個 airflow 任務
+  
+  當中準備了 airflow 所需的 dag 檔案，定義了兩個 airflow 任務
+    
   ./realtime/realtime_data
-    存放一個 realtime.db 檔，它是一個 sqlite3 的資料庫檔案，存放前面所述爬蟲爬取的資料
+  
+  存放一個 realtime.db 檔，它是一個 sqlite3 的資料庫檔案，存放前面所述爬蟲爬取的資料
+
 
 ./historical
-  存放天氣與電力的歷史資料
-  其中整合過的歷史天氣資料路徑為 ./historical/data/weather/finalized/big_table.csv
-  整合過的歷史電力資料路徑為 ./historical/data/power/power_deneration_data.csv
-  ./historical/src
-    一些整理下載後的歷史資料的程式
+
+存放天氣與電力的歷史資料
+
+其中整合過的歷史天氣資料路徑為 ./historical/data/weather/finalized/big_table.csv
+
+整合過的歷史電力資料路徑為 ./historical/data/power/power_deneration_data.csv
+
+./historical/src
+
+一些整理下載後的歷史資料的程式
 
 ./utils
-  存放我自己寫的輔助資料分析的模組
 
-./EDA.ipynb                         EDA 用 jupyter notebook
-./Test_realtime_airflow.ipynb       印出 airflow 與爬蟲抓取的最新資料，以便以肉眼檢查資料正確性
+存放我自己寫的輔助資料分析的模組
+
+./EDA.ipynb
+
+EDA 用 jupyter notebook
+
+./Test_realtime_airflow.ipynb
+
+印出 airflow 與爬蟲抓取的最新資料，以便以肉眼檢查資料正確性
+
+./Power_prediction.ipynb
+
+這個筆記本包含從天氣觀測資料預測電力資料的特徵工程，建模與評估模型部分
 
 ## 安裝與使用方法
 提供安裝和使用你的專案的指示。包括所需的相依套件、如何設置環境、安裝步驟和執行專案的指令。
