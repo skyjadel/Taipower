@@ -4,7 +4,6 @@ import datetime
 import numpy as np
 
 from model_management.Predict import main_predict
-from utils.prepare_data import prepare_data
 
 test_data_path = '../../historical/data/'
 test_model_dir = '../../trained_model_parameters/models_tobe_evaluated/'
