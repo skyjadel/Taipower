@@ -24,14 +24,6 @@ RUN apt-get clean && apt-get update && apt-get install -y wget gnupg2 unzip libg
 # 確保安裝 Chrome 115 以上的版本
 RUN google-chrome --version
 
-# # 安裝相應版本的 ChromeDriver
-# RUN CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+') \
-#     && CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION) \
-#     && wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip \
-#     && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
-#     && rm /tmp/chromedriver.zip \
-#     && chmod +x /usr/local/bin/chromedriver
-
 # 切換回 airflow 使用者
 USER airflow
 
