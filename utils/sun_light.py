@@ -4,7 +4,6 @@
 
 import ephem
 import numpy as np
-import pandas as pd
 from datetime import datetime, timedelta
 import pytz
 
@@ -48,11 +47,29 @@ def calculate_all_day_sunlight(solar_energy_site, date, solar_cell_direction = [
     az_site = solar_cell_direction[0] / 180 * np.pi
     alt_site = solar_cell_direction[1] / 180 * np.pi
     site_vector = [np.sin(az_site) * np.cos(alt_site), np.cos(az_site) * np.cos(alt_site),  np.sin(alt_site)]
+    observer = _Observer(solar_energy_site)
 
     for t in test_time:
-        north_tainan = _Observer(solar_energy_site)
-        alt, az = _get_sun_az_alt(north_tainan, t, unit='rad')
+        alt, az = _get_sun_az_alt(observer, t, unit='rad')
         this_sun_vector = [np.sin(az) * np.cos(alt), np.cos(az) * np.cos(alt),  np.sin(alt)]
         sun_cell_productions.append(np.inner(np.array(site_vector), np.array(this_sun_vector)))
         sun_cell_production = sum([i if i > 0 else 0 for i in sun_cell_productions]) / 6
     return sun_cell_production
+
+def calculate_daytime(site, date):
+    time_interval_minutes = 1
+    if type(date) == str:
+        date = strptime(date, "%Y-%m-%d")
+    test_time = [strftime(date + timedelta(minutes=i * time_interval_minutes), '%Y-%m-%d %H:%M:%S') for i in range(int(1440/time_interval_minutes))]
+    observer = _Observer(site)
+
+    daytime = 0
+    previous_alt = -90
+    for t in test_time:
+        alt, _ = _get_sun_az_alt(observer, t, unit='rad')
+        if alt > 0:
+            daytime += time_interval_minutes
+        elif previous_alt > 0:
+            break
+        previous_alt = alt
+    return daytime / 60
