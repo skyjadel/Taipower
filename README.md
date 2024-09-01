@@ -48,6 +48,9 @@ Fully-Connected Neural Network
 ./utils  
 其他需要的模組，以及一些程式需要的先備知識  
 
+./trained_model_parameters  
+存放現行模型 (latest_model 資料夾) 以及用來訓練新模型使用的超參數
+
 ./airflow-docker  
 存放建立 Docker 所需檔案。這個 Docker 的功能是利用 airflow 定期進行資料爬取、資料整合、模型預測、模型評估、模型訓練等任務  
 
