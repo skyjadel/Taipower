@@ -107,7 +107,7 @@ def get_oneday_power_data(sql_db_fn, date, solar_energy_day_only):
     pwd_gen_df = pwd_gen_df[pwd_gen_df['尖峰負載'] == max(pwd_gen_df['尖峰負載'])]
 
     if solar_energy_day_only:
-        solar_df = get_full_oneday_power_df(sql_db_fn, date, day_only=False)
+        solar_df = get_full_oneday_power_df(sql_db_fn, date, day_only=True)
         if not solar_df is None:
             solar_df = solar_df[solar_df['尖峰負載'] == max(solar_df['尖峰負載'])]
             pwd_gen_df.loc[pwd_gen_df.index[0], '太陽能發電'] = solar_df['太陽能發電'].iloc[0]
