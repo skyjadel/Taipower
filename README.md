@@ -6,58 +6,71 @@
 同時台電的發電結構當中，風力與太陽能的比例節節上升，已經超越核能，然而風力和太陽能是字面上意義的靠天吃飯，所以這個專案也想要藉由風速與日照等觀測資料，來預測風力與太陽能的每天發電量。
 
 不過既然要預測，我們總是希望能從前一天的氣象預報來預測第二天的電力需求與綠能產出，然而我並沒有找到中央氣象署公開的歷史預測資料。
-因此只好從專案開啟那一天開始使用 airflow 自動收集中央氣象署官網上的預報資料，希望在累積足夠的資料之後，能夠了解從預報轉換到觀測資料的方式。
+因此只好從專案開啟那一天開始使用 airflow 自動收集中央氣象署官網上的預報資料，並在累積足夠的資料之後，建立預報轉換到觀測資料的模型。
 
-本專案也利用 GPT4 API 與 langchain RAG 技術串接預測模型，讓 LLM 可以回答以上關於電力預測的問題。另外也使用 streamlit 套件製作一個儀表板。
-這些部份的呈現可以在 <a href="http://ec2-54-206-30-159.ap-southeast-2.compute.amazonaws.com:8501/" target="_blank">這裡</a> 找到
+如上所述，這個專案的資料預測部份分成兩個階段：
+1. 從氣象預報資料預測氣象觀測資料。
+2. 從氣象觀測資料以及其他包括假日與季節因素預測綠能與尖峰負載。
+
+以上兩個部份的訓練與預測都採用了集成學習，使用的模型種類包括：
+Linear Regression
+Logistic Regression
+Random Forest
+XGBoost
+LightGBM
+SVM
+NuSVM
+Fully-Connected Neural Network
+
+本專案也利用 GPT4 API 與 langchain RAG 技術串接預測結果，讓 LLM 可以回答以上關於電力預測的問題。另外也使用 streamlit 套件製作一個儀表板，呈現最新預測以及過去預測的準確度。
+這些部份的呈現可以在 <a href="http://ec2-54-206-30-159.ap-southeast-2.compute.amazonaws.com:8501/">這裡</a> 找到。
 
 ## 專案結構
-./realtime
-
-  這個資料夾本身是一個 docker 專案，所以其中的 Dockerfile, docker-compose.yml, 與 requirements.txt 都是建立 docker container 所需的檔案
-  
-  這個 container 的目的是執行兩個 airflow 任務，分別定期自動去爬取實時氣象觀測資料，實時氣象預報 (氣象資料每六小時爬取一次)，以及實時台電各機組發電量 (電力資料每30分鐘爬取一次)
-  
-  ./realtime/src
-  
-  當中準備了爬取中央氣象署與台灣電力公司網站的爬蟲程式
+./realtime/realtime_data
+存放一個 realtime.db 檔，它是一個 sqlite3 的資料庫檔案，存放前面所述爬蟲爬取的資料
+以及一個 peak.csv 檔，紀錄今天到目前為止用電尖峰的資料，以提供 dashboard.py 使用
     
-  ./realtime/dags
-  
-  當中準備了 airflow 所需的 dag 檔案，定義了兩個 airflow 任務
-    
-  ./realtime/realtime_data
-  
-  存放一個 realtime.db 檔，它是一個 sqlite3 的資料庫檔案，存放前面所述爬蟲爬取的資料
-
-
 ./historical
-
 存放天氣與電力的歷史資料
+其中歷史天氣資料路徑為 ./historical/data/weather/finalized/big_table.csv
+歷史電力資料路徑為 ./historical/data/power/power_deneration_data.csv
+歷史預測資料為 ./historical/data/prediction/
 
-其中整合過的歷史天氣資料路徑為 ./historical/data/weather/finalized/big_table.csv
-
-整合過的歷史電力資料路徑為 ./historical/data/power/power_deneration_data.csv
-
-./historical/src
-
-一些整理下載後的歷史資料的程式
-
+以下五個資料夾為我自己寫的套件
+./crawler
+負責將即時天氣預報、天氣觀測、電力資訊利用爬蟲抓取下來，並存到 realtime.db 資料庫中
+./data_integration
+負責將 sqlite3 database 裡的即時資料整合成歷史資料格式，並存到 ./historical 資料夾
+./model_management
+提供各機器學習/深度學習的集成學習整合 API，包括模型的訓練、呼叫與存取
+./Pytorch_models
+包含 PyTorch 深度學習模型的定義，以及 API 包裝，API功能包括模型創建、訓練、預測，以及參數的存取
 ./utils
+其他需要的模組，以及一些程式需要的先備知識
 
-存放我自己寫的輔助資料分析的模組
+./airflow-docker
+存放建立 Docker 所需檔案。這個 Docker 的功能是利用 airflow 定期進行資料爬取、資料整合、模型預測、模型評估、模型訓練等任務
 
 ./EDA.ipynb
-
 EDA 用 jupyter notebook
 
 ./Test_realtime_airflow.ipynb
-
 印出 airflow 與爬蟲抓取的最新資料，以便以肉眼檢查資料正確性
 
 ./Power_prediction.ipynb
-
 這個筆記本包含從天氣觀測資料預測電力資料的特徵工程，建模與評估模型部分
+
+./Forecast_to_Weather_obs_Hyperparameter.ipynb
+這個筆記本包含從氣象預報資料預測氣象觀測資料的特徵工程、建模、超參數調整、集成學習與評估模型部分
+
+./Weather_obs_to_Power_Hyperparameter.ipynb
+這個筆記本包含從天氣觀測資料預測電力資料的超參數調整、集成學習與評估模型部分
+
+./dashboard.py
+定義 streamlit 儀表板，就是我們在 <a href="http://ec2-54-206-30-159.ap-southeast-2.compute.amazonaws.com:8501/">這裡</a> 看到的
+
+./chatbot.py
+定義聊天機器人，利用模型預測結果與真實電力資訊回答電力相關問題。
 
 ## 安裝與使用方法
 提供安裝和使用你的專案的指示。包括所需的相依套件、如何設置環境、安裝步驟和執行專案的指令。
