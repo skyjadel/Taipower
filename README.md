@@ -78,7 +78,7 @@ EDA 用 jupyter notebook
 ### 自動執行設定
 這個專案的自動執行部分使用 airflow 與 Docker 進行，因此我們要先安裝 Docker  
 如果你是使用 Windows 10 或 Windows 11，可以參考 <a href="https://medium.com/@weiberson/%E5%9C%A8win11%E5%AE%89%E8%A3%9Dwsl%E5%92%8Cdocker%E5%AE%89%E8%A3%9D%E6%95%99%E5%AD%B8-6d50473b5e09">這篇</a> 安裝 WSL2 與 Docker  
-接下來請將 airflow-docker.zip 這個檔案下載下來，準備一個乾淨的資料夾 (以下以 D:\Taipower\ 為例)，將 zip 檔在裡面解壓縮  
+接下來請準備一個乾淨的資料夾 (以下以 D:\Taipower\ 為例)，將專案在裡面複製一份  
 然後打開 WSL2 的終端機，在命令列執行 cd /mnt/d/Taipower/airflow-docker
 
 ## 資料收集
