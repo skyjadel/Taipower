@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  webserver:
+    build: .
+    image: airflow:latest
+    depends_on:
+      - postgres
+    environment:
+      TZ: Asia/Taipei
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Taipei
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ../realtime/realtime_data:/opt/airflow/sql_db
+      - ../historical/data:/opt/airflow/historical_data
+      - ../trained_model_parameters/latest_model:/opt/airflow/model
+      - ../trained_model_parameters/model_meta_2024-08-22:/opt/airflow/model_meta
+      - ../trained_model_parameters/models_tobe_evaluated:/opt/airflow/models_tobe_evaluated
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+      airflow db init &&
+      airflow users create --username admin --password admin --firstname First --lastname Last --role Admin --email admin@example.com &&
+      airflow webserver
+      "
+
+  scheduler:
+    build: .
+    image: airflow:latest
+    depends_on:
+      - webserver
+    environment:
+      TZ: Asia/Taipei
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Taipei
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ../realtime/realtime_data:/opt/airflow/sql_db
+      - ../historical/data:/opt/airflow/historical_data
+      - ../trained_model_parameters/latest_model:/opt/airflow/model
+      - ../trained_model_parameters/model_meta_2024-08-22:/opt/airflow/model_meta
+      - ../trained_model_parameters/models_tobe_evaluated:/opt/airflow/models_tobe_evaluated
+    command: >
+      bash -c "
+      sleep 45 &&
+      airflow scheduler
+      "
+
+volumes:
+  postgres_data:
