@@ -12,7 +12,7 @@
 1. 從氣象預報資料預測氣象觀測資料。
 2. 從氣象觀測資料以及其他包括假日與季節因素預測綠能與尖峰負載。
 
-以上兩個部份的訓練與預測都採用了集成學習，使用的模型種類包括：
+以上兩個部份的訓練與預測都採用了集成學習，使用的模型種類包括：  
 Linear Regression  
 Logistic Regression  
 Random Forest  
@@ -73,7 +73,13 @@ EDA 用 jupyter notebook
 定義聊天機器人，利用模型預測結果與真實電力資訊回答電力相關問題。  
 
 ## 安裝與使用方法
-提供安裝和使用你的專案的指示。包括所需的相依套件、如何設置環境、安裝步驟和執行專案的指令。
+### 系統需求
+由於這個專案有使用一點點的深度學習，所以系統最好要有與 cuda 相容的顯示卡，VRAM 最好要在 6GB 以上
+### 自動執行設定
+這個專案的自動執行部分使用 airflow 與 Docker 進行，因此我們要先安裝 Docker  
+如果你是使用 Windows 10 或 Windows 11，可以參考 <a href="https://medium.com/@weiberson/%E5%9C%A8win11%E5%AE%89%E8%A3%9Dwsl%E5%92%8Cdocker%E5%AE%89%E8%A3%9D%E6%95%99%E5%AD%B8-6d50473b5e09">這篇</a> 安裝 WSL2 與 Docker  
+接下來請將 airflow-docker.zip 這個檔案下載下來，準備一個乾淨的資料夾 (以下以 D:\Taipower\ 為例)，將 zip 檔在裡面解壓縮  
+然後打開 WSL2 的終端機，在命令列執行 cd /mnt/d/Taipower/airflow-docker
 
 ## 資料收集
 如果你的專案需要特定的資料集，這裡可以提供一些關於如何獲取、處理或下載資料的指示。
