@@ -139,12 +139,17 @@ def one_tab(y_feature, second_row_first_col):
 
     forth_row = list(left.columns(4))
 
-    if now.hour >= first_hour_show_today_peak or (now.hour == 0 and now.minute <= 40) and second_row_first_col==2:
-        today_str = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+    if now.hour >= first_hour_show_today_peak:
         forth_row[second_row_first_col-1].metric(
             label=f"今日尖峰時間",
-            value=peak_today['尖峰時間'][0]
+            value=peak_today['尖峰時間'][0].split(' ')[1]
         )
+    elif (now.hour == 0 and now.minute <= 40) and second_row_first_col==2:
+        forth_row[second_row_first_col-1].metric(
+            label=f"昨日尖峰時間",
+            value=peak_today['尖峰時間'][0].split(' ')[1]
+        )
+        
 
     for i, j in enumerate(range(second_row_first_col, 4)):
         this_val = avg_err[-i-1]
