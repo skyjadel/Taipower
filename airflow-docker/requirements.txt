@@ -1,0 +1,10 @@
+elasticsearch
+pandas==1.3.5
+numpy==1.26.3
+ephem==4.1.5
+requests==2.32.3
+beautifulsoup4==4.12.3
+scikit-learn==1.5.1
+joblib==1.4.2
+xgboost==2.1.0
+lightgbm==4.4.0
