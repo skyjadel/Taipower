@@ -28,7 +28,7 @@ services:
       - ../realtime/realtime_data:/opt/airflow/sql_db
       - ../historical/data:/opt/airflow/historical_data
       - ../trained_model_parameters/latest_model:/opt/airflow/model
-      - ../trained_model_parameters/model_meta_2024-08-22:/opt/airflow/model_meta
+      - ../trained_model_parameters/model_meta_2024-08-30:/opt/airflow/model_meta
       - ../trained_model_parameters/models_tobe_evaluated:/opt/airflow/models_tobe_evaluated
     ports:
       - "8080:8080"
@@ -57,7 +57,7 @@ services:
       - ../realtime/realtime_data:/opt/airflow/sql_db
       - ../historical/data:/opt/airflow/historical_data
       - ../trained_model_parameters/latest_model:/opt/airflow/model
-      - ../trained_model_parameters/model_meta_2024-08-22:/opt/airflow/model_meta
+      - ../trained_model_parameters/model_meta_2024-08-30:/opt/airflow/model_meta
       - ../trained_model_parameters/models_tobe_evaluated:/opt/airflow/models_tobe_evaluated
     command: >
       bash -c "
