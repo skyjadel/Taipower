@@ -8,7 +8,7 @@ from Evaluate_Given_Models import evalute_models
 
 data_path = '/opt/airflow/historical_data/'
 model_dir = '/opt/airflow/models_tobe_evaluated/'
-current_model_path = '/opt/airflow/model/latest_model/'
+current_model_path = '/opt/airflow/model/'
 
 def run(data_path=data_path, model_dir=model_dir, current_model_path=current_model_path):
     evalute_models(data_path, model_dir=model_dir, current_model_path=current_model_path)
