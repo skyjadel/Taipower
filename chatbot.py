@@ -9,6 +9,10 @@ from copy import deepcopy
 import numpy as np
 import datetime
 
+###################################################
+#    定義一個聊天機器人給 dashboard.py 呼叫       #
+##################################################
+
 historical_data_path = './historical/data/'
 api_key_path = 'D:/資料科學與人工智慧實驗室/授權/openai/key.txt'
 model = 'gpt-4'
