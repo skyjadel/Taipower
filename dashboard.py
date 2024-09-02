@@ -179,8 +179,6 @@ def one_tab(y_feature, second_row_first_col):
     df[f'{y_feature}誤差'] = np.abs(df[f'{y_feature}_預測'] - df[f'{y_feature}'])
 
     # 使用 Plotly Express 創建長條圖
-    # bar_fig = px.bar(df, x='日期', y=f'{y_feature}誤差',
-    #                  labels={f'{y_feature}誤差': '每日誤差'})
     line_fig = px.line(df, x='日期', y=f'{y_feature}7日內平均誤差', color_discrete_sequence=['gray'],
                        labels={f'{y_feature}7日內平均誤差': '七日平均誤差'})
 
@@ -188,9 +186,6 @@ def one_tab(y_feature, second_row_first_col):
 
     for trace in line_fig.data:
         fig.add_trace(trace)
-
-    # for trace in bar_fig.data:
-    #     fig.add_trace(trace)
 
     fig.update_layout(
         title=f'七日平均誤差 ({this_unit})',
