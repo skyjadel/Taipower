@@ -36,6 +36,7 @@ holidays = [
     datetime.datetime(2024, 7, 25),
     datetime.datetime(2024, 9, 17),
     datetime.datetime(2024, 10, 10),
+    datetime.datetime(2025, 1, 1),
 ]
 
 #補班日
