@@ -88,15 +88,6 @@ def get_full_oneday_power_df(sql_db_fn, date, day_only):
     pwd_gen_df['日期'] = date_str.replace('-', '/')
     pwd_gen_df.rename({'總負載': '尖峰負載'}, axis=1, inplace=True)
     pwd_gen_df['尖峰負載'] *= 10
-
-    # if len(set(pwd_gen_df.columns)) < len(pwd_gen_df.columns):
-    #     unique_col_list = []
-    #     duplicate_col_list = []
-    #     for col in pwd_gen_df.columns:
-    #         if not col in unique_col_list:
-    #             unique_col_list.append(col)
-    #         else:
-    #             duplicate_col_list.append(col)
         
     return pwd_gen_df
 
