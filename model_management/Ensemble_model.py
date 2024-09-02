@@ -300,8 +300,7 @@ class Ensemble_Model():
         if use_model == 'Ensemble':
             for model_label in self.model_labels:
                 X = np.array(df[self.X_cols[model_label]])
-
-                # 補 X 的缺失值
+                
                 nan_idx = np.where(np.isnan(X))
                 for i in range(nan_idx[0].shape[0]):
                     ri = nan_idx[0][i]
@@ -329,7 +328,7 @@ class Ensemble_Model():
             model_label = use_model
             X = np.array(df[self.X_cols[model_label]])
 
-            # 補 X 的缺失值
+
             nan_idx = np.where(np.isnan(X))
             for i in range(nan_idx[0].shape[0]):
                 ri = nan_idx[0][i]

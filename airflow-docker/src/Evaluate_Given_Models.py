@@ -19,7 +19,6 @@ def evalute_models(data_path, model_dir, current_model_path, evaluation_tolerenc
         model_list.remove('evaluations.csv')
     model_list.append('Current')
 
-    #weather_power_df = prepare_data(data_path)
     power_df = pd.read_csv(f'{data_path}power/power_generation_data.csv')
     power_df['日期'] = pd.to_datetime(power_df['日期'])
     power_df['尖峰負載'] /= 10

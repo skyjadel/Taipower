@@ -5,8 +5,6 @@ import numpy as np
 
 from utils.sun_light import calculate_daytime, calculate_all_day_sunlight
 
-#sql_db_fn = './realtime/realtime_data/realtime.db'
-#historical_data_path = './historical/data/'
 test_sql_fn = '../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
 
@@ -130,7 +128,6 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn):
     cursor = conn.cursor()
     
     sql_command = f"SELECT * FROM observation WHERE obs_time > '{date_str} 00:00:00' AND obs_time <= '{date_str_2nd_day} 00:00:00' AND station = '{station}'"
-    #print(sql_command)
     cursor.execute(sql_command)
     
     sql_output = cursor.fetchall()
@@ -183,16 +180,6 @@ def main(sql_db_fn, historical_data_path, time_zone='TWN'):
     date_yesterday = time_now.date() - datetime.timedelta(days=1)
     if time_now.hour < 1 and time_now.minute <= 15:
         date_yesterday -= datetime.timedelta(days=1)
-    # if time_zone == 'TWN':
-    #     date_yesterday = time_now.date() - datetime.timedelta(days=1)
-    #     if time_now.hour < 3:
-    #         date_yesterday -= datetime.timedelta(days=1)
-    # elif time_zone == 'UTC':
-    #     if time_now.hour >= 19:
-    #         date_yesterday = time_now.date()
-    #     else:
-    #         date_yesterday = time_now.date() - datetime.timedelta(days=1)
-
 
     station_list = site_location_dict.keys()
     new_data = []

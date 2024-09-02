@@ -122,7 +122,6 @@ class Model_API():
             metrics = {'MAE': mae},
             best_parametet_saver_mode='avg_min',
             best_parametet_saver_mv_length=10,
-            #best_parameter_saver = Best_Parameter_Saver(mode='avg_min', mv_length=10),
             scheduler_ref = 'Val_MAE',
             scheduler_mode = 'min',
             batch_size=16,
@@ -196,14 +195,12 @@ class Model_API():
                     with torch.no_grad():
                         y_pred = self.model(this_X).squeeze()
                     loss_val = criterion(y_pred, this_Y)
-                    #print(loss_val)
                     
                     this_batch_size = this_X.size(0)
                     total_loss += loss_val * this_batch_size
                     for k, func in metrics.items():
                         total_metrics[k] += func(this_Y, y_pred) * this_batch_size
                     total_samples += this_batch_size
-                #print(total_loss, total_samples)
 
                 self.history['Val_loss'].append((total_loss / total_samples).item())
                 for k in metrics.keys():
@@ -264,7 +261,7 @@ class Model_API():
         Y = np.squeeze(Y)
         return Y
 
-    # 儲存模型參數，file_path是一個目錄，如果之前不存在則會自動建立
+    # 儲存模型參數
     def save_weight(self, file_path):
         if not os.path.exists(file_path):
             os.makedirs(file_path, exist_ok=True)
@@ -278,17 +275,11 @@ class Model_API():
 
         model_params_dict = self.model.params
         model_params_dict['linear_transform'] = self.linear_transform
-        # model_params_dict = {
-        #     'input_f': self.input_f,
-        #     'output_f': self.output_f,
-        #     'feature_counts': self.feature_counts,
-        #     'dropout_factor': self.dropout_factor,
-        #     'linear_transform': self.linear_transform
-        # }
+
         with open(file_path + 'hyper_parameters.json', 'w') as f:
             _ = json.dump(model_params_dict, f)
 
-    # 讀取模型參數，file_path是前面 self.save_weight 產生的那個目錄
+    # 讀取模型參數
     def load_weight(self, file_path):
         self.model.load_state_dict(torch.load(file_path + 'FCN.pt'))
         if os.path.exists(file_path + 'scalerX.model'):

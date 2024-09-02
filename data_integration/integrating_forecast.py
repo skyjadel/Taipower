@@ -4,7 +4,6 @@ import datetime
 strptime = datetime.datetime.strptime
 strftime = datetime.datetime.strftime
 
-#sql_db_path = './realtime/realtime_data/realtime.db'
 test_sql_fn = './../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
 

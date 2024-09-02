@@ -3,8 +3,6 @@ import pandas as pd
 import datetime
 import numpy as np
 
-#sql_db_fn = './realtime/realtime_data/realtime.db'
-#historical_data_path = './historical/data/'
 test_sql_fn = './../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
 
@@ -30,7 +28,6 @@ hydro_powers = ['德基', '青山', '谷關', '天輪', '馬鞍', '萬大', '鉅
 generator_translation_dict.update({k: [k] for k in hydro_powers})
 
 def get_full_oneday_power_df(sql_db_fn, date, day_only):
-    #date_num = date.year * 10000 + date.month * 100 + date.day
     date_str = datetime.datetime.strftime(date, '%Y-%m-%d')
     date_str_2nd_day = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y-%m-%d')
     conn = sqlite3.connect(sql_db_fn)
