@@ -98,6 +98,8 @@ def read_historical_power_data(data_fn, start_date=start_date, end_date=end_date
         big_power_type_dict[big_type] = list(time_series)
     big_power_type_df = pd.DataFrame(big_power_type_dict)
 
+    big_power_type_df['夜尖峰'] = [0 if se > 20 else 1 for se in big_power_type_df['太陽能']]
+
     big_power_type_df = delete_and_fill_na(big_power_type_df)
 
     return big_power_type_df
