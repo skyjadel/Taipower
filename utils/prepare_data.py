@@ -293,13 +293,13 @@ def prepare_observation_power_df(historical_data_path, start_date=start_date, en
 
     return weather_power_df
 
-ref_cols = ['日期', '氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', 
-            '日期數字', '假日', '週六', '週日', '補班', '1~3月', '11~12月',
-            '風力', '太陽能', '尖峰負載', '白日長度', '夜尖峰']
-
 def prepare_data(historical_data_path, start_date=start_date, end_date=end_date):
     weather_power_df = prepare_observation_power_df(historical_data_path=historical_data_path, start_date=start_date, end_date=end_date)
     return weather_power_df
+
+ref_cols = ['日期', '氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', 
+            '日期數字', '假日', '週六', '週日', '補班', '1~3月', '11~12月',
+            '風力', '太陽能', '尖峰負載', '白日長度', '夜尖峰']
 
 def prepare_model_input_df(historical_data_path, ref_cols=ref_cols):
     weather_power_df = prepare_data(historical_data_path)
