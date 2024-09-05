@@ -63,12 +63,13 @@ class Ensemble_Model():
         varify(): 輸入一個 pandas DataFrame 包含 X 與 Y_truth，回傳一個 DataFrame 回報主模型與各個子模型的預測成績
     '''
     def __init__(self, Y_feature, 
-                 model_path='None', 
+                 model_path=None, 
                  X_feature_dict=None, hyperparameters_dict=None, weights='uniform',
                  data_path=None, start_date='2023-08-01', end_date='2024-09-30',
                  test_size=0.2, test_last_fold=False,
                  apply_night_peak=False, NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
-                 remove_night_peak_samples=True):
+                 remove_night_peak_samples=True,
+                 is_NP_model=False):
 
         self.station_list = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠']
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
@@ -77,20 +78,11 @@ class Ensemble_Model():
         self.single_column_names = ['日期數字', '假日', '週六', '週日', '補班', '1~3月', '11~12月']
 
         self.Y_feature = Y_feature
-        self.apply_night_peak = apply_night_peak
-        self.remove_night_peak_samples = remove_night_peak_samples
-        self.X_feature_dict = X_feature_dict
-        self.hyperparameters_dict = hyperparameters_dict
-        self.start_date = start_date
-        self.end_date = end_date
-        self.data_path = data_path
-        self.test_size = test_size
-        self.test_last_fold = test_last_fold
 
         if self.Y_feature in ['風力', '太陽能', '尖峰負載', '日照率', '最高氣溫', '最低氣溫', '氣溫', '風速']:
             self.mode = 'regressor'
             self.varify_metric = R2_score
-        elif self.Y_feature == '夜尖峰':
+        elif self.Y_feature in ['夜尖峰']:
             self.mode = 'classifier'
             self.varify_metric = f1_score
 
@@ -100,40 +92,53 @@ class Ensemble_Model():
             self.predict_way = 'fore_to_obs'
 
         # 如果有給 model_path，就從裡面讀取模型
-        if not model_path == 'None':
-            if os.path.exists(model_path + f'{self.Y_feature}/'):
-                self.load_model(model_path + f'{self.Y_feature}/')
+        if not model_path is None:
+            if is_NP_model:
+                this_model_path = model_path
+            else:
+                this_model_path = f'{model_path}{self.Y_feature}/'
+            if os.path.exists(this_model_path):
+                self.load_model(this_model_path)
             else:
                 raise ValueError('model_path does not exist.')
             return None
+        else:
+            self.apply_night_peak = apply_night_peak
+            self.remove_night_peak_samples = remove_night_peak_samples
+            self.X_feature_dict = X_feature_dict
+            self.hyperparameters_dict = hyperparameters_dict
+            self.start_date = start_date
+            self.end_date = end_date
+            self.data_path = data_path
+            self.test_size = test_size
+            self.test_last_fold = test_last_fold
 
-        if self.predict_way == 'obs_to_pwd':
-            self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
-        elif self.predict_way == 'fore_to_obs':
-            self.data_df = prepare_forecast_observation_df(self.data_path, start_date=self.start_date, end_date=self.end_date)
-            
-        self.model_labels = list(self.X_feature_dict.keys())
-        self.models = {model_label: self.assign_model(model_label) for model_label in self.model_labels}
-                     
-        self.scalers = {}
-        self.X_cols = {}
-        # for model_label in self.model_labels:
-        #     self.models[model_label] = self.assign_model(model_label)
-        self.weights = weights
-        if weights == 'uniform':
-            self.weights = {label: 1/len(self.model_labels) for label in self.model_labels}
+            if self.predict_way == 'obs_to_pwd':
+                self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
+            elif self.predict_way == 'fore_to_obs':
+                self.data_df = prepare_forecast_observation_df(self.data_path, start_date=self.start_date, end_date=self.end_date)
+                
+            self.model_labels = list(self.X_feature_dict.keys())
+            self.models = {model_label: self.assign_model(model_label) for model_label in self.model_labels}
+                        
+            self.scalers = {}
+            self.X_cols = {}
 
-        if self.Y_feature in ['太陽能', '夜尖峰']:
-            self.data_df['夜尖峰'] = [0 if se > 50 else 1 for se in self.data_df['太陽能']]
+            self.weights = weights
+            if weights == 'uniform':
+                self.weights = {label: 1/len(self.model_labels) for label in self.model_labels}
 
-        if self.Y_feature == '太陽能' and self.apply_night_peak:
-            self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰',
-                                                   X_feature_dict=NP_X_feature_dict,
-                                                   hyperparameters_dict=NP_hyperparameters_dict,
-                                                   weights=NP_weights,
-                                                   data_path=data_path,
-                                                   start_date=start_date,
-                                                   end_date=end_date)      
+            if self.Y_feature in ['太陽能', '夜尖峰']:
+                self.data_df['夜尖峰'] = [0 if se > 50 else 1 for se in self.data_df['太陽能']]
+
+            if self.Y_feature == '太陽能' and self.apply_night_peak:
+                self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰',
+                                                    X_feature_dict=NP_X_feature_dict,
+                                                    hyperparameters_dict=NP_hyperparameters_dict,
+                                                    weights=NP_weights,
+                                                    data_path=data_path,
+                                                    start_date=start_date,
+                                                    end_date=end_date)      
         
     # Define Fully Connected Network Model
     def FCN_model(self, input_f, output_f, feature_counts=[16, 16, 16, 8], feature_count_label=None, dropout_factor=0, L2_factor=1e-15, mode='regressor'):
@@ -408,8 +413,12 @@ class Ensemble_Model():
     def load_model(self, model_path):
         
         def get_x_cols(filename):
-            with open(filename, 'r', encoding='utf-8-sig') as f:
-                X_cols_str = f.read()
+            try:
+                with open(filename, 'r', encoding='utf-8-sig') as f:
+                    X_cols_str = f.read()
+            except:
+                with open(filename, 'r', encoding='big5') as f:
+                    X_cols_str = f.read()
             return X_cols_str.split(', ')[0:-1]
 
         self.load_model_metadata(model_path + 'meta.json')
@@ -431,6 +440,7 @@ class Ensemble_Model():
                 self.models[model_label] = joblib.load(this_path + 'model.pkl')
 
         NP_path = model_path + 'NP_model/'
-        if self.Y_feature == '太陽能' and os.path.exist(NP_path):
+        self.apply_night_peak = False
+        if self.Y_feature == '太陽能' and os.path.exists(NP_path):
             self.apply_night_peak = True
-            self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰', model_path=NP_path)
+            self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰', model_path=NP_path, is_NP_model=True)

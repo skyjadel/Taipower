@@ -9,16 +9,16 @@ MAE = Array_Metrics.mae
 R2_score = Array_Metrics.r2
 
 params_dict = {
-    'meta_path': '../../trained_model_parameters/model_meta_2024-08-11/', 
-    'data_path': '../../historical/data/', 
+    'meta_path': '../trained_model_parameters/model_meta_2024-08-28/', 
+    'data_path': '../historical/data/', 
     'test_size': 0.001,
     'test_last_fold': False,
     'apply_night_peak': False,
     'start_date': '2023-08-01',
     'end_date': '2200-12-31'
 }
-train_model_main_path = '../../trained_model_parameters/models_tobe_evaluated/'
-latest_model_path='../../trained_model_parameters/latest_model/'
+train_model_main_path = '../trained_model_parameters/models_tobe_evaluated/'
+latest_model_path='../trained_model_parameters/latest_model/'
 
 
 def save_model_metadata(file_path, model_xcols, model_hyperparameters_dict, optimal_weights):
