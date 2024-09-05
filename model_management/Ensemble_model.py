@@ -214,6 +214,8 @@ class Ensemble_Model():
                 feature_counts = [16, 16, 16, 8]
                 model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts,
                                        mode='classifier', **self.hyperparameters_dict[model_label])
+            else:
+                raise ValueError(f'model_label "{model_label}" is not in preset list.')
             return model
         if self.mode == 'regressor':
             if model_label == 'LinearRegression':
@@ -234,24 +236,11 @@ class Ensemble_Model():
                 feature_counts = [16, 16, 16, 8]
                 model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts, 
                                        **self.hyperparameters_dict[model_label])
-        return model
-
-    def train_ML_model(self, model_label, X_train, Y_train):
-        
-        self.scalers[model_label] = StandardScaler().fit(X_train)
-        X_train = self.scalers[model_label].transform(X_train)
-        
-        _ = self.models[model_label].fit(X_train, Y_train)
-
-    def train_DL_model(self, model_label, X_train, Y_train):
-
-        X_train, X_val, Y_train, Y_val = self.get_train_and_test_data(X_train, Y_train, test_size=0.2, test_last_fold=False)
-        
-        self.scalers[model_label] = StandardScaler().fit(X_train)
-        X_train = self.scalers[model_label].transform(X_train)
-        X_val = self.scalers[model_label].transform(X_val)
-        
-        _ = self.models[model_label].fit(X_train, Y_train, X_val, Y_val)
+            else:
+                raise ValueError(f'model_label "{model_label}" is not in preset list.')
+            return model
+        else:
+            raise ValueError('Model mode should be either "regressor" or "classifier".')
 
     def save_model_metadata(self, file_path):
         output_dict = {
@@ -274,6 +263,23 @@ class Ensemble_Model():
         self.X_feature_dict = meta['X_feature_dict']
         self.hyperparameters_dict = meta['hyperparameters_dict']
         self.weights = meta['weights']
+
+    def train_ML_model(self, model_label, X_train, Y_train):
+        
+        self.scalers[model_label] = StandardScaler().fit(X_train)
+        X_train = self.scalers[model_label].transform(X_train)
+        
+        _ = self.models[model_label].fit(X_train, Y_train)
+
+    def train_DL_model(self, model_label, X_train, Y_train):
+
+        X_train, X_val, Y_train, Y_val = self.get_train_and_test_data(X_train, Y_train, test_size=0.2, test_last_fold=False)
+        
+        self.scalers[model_label] = StandardScaler().fit(X_train)
+        X_train = self.scalers[model_label].transform(X_train)
+        X_val = self.scalers[model_label].transform(X_val)
+        
+        _ = self.models[model_label].fit(X_train, Y_train, X_val, Y_val)
 
     def train(self):
         if not hasattr(self, 'train_ind'):
@@ -380,7 +386,7 @@ class Ensemble_Model():
             self.Night_Peak_Model.save_model(NP_path)
 
     def load_model(self, model_path):
-
+        
         def get_x_cols(filename):
             with open(filename, 'r', encoding='utf-8-sig'):
                 X_cols_str = f.read()
@@ -403,7 +409,8 @@ class Ensemble_Model():
                 self.models[model_label].load_weight(this_path + 'model/')
             else:
                 self.models[model_label] = joblib.load(this_path + 'model.pkl')
-                
-        if self.Y_feature == '太陽能' and self.apply_night_peak:
-            NP_path = model_path + 'NP_model/'
+
+        NP_path = model_path + 'NP_model/'
+        if self.Y_feature == '太陽能' and os.path.exist(NP_path):
+            self.apply_night_peak = True
             self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰', model_path=NP_path)
