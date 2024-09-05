@@ -34,15 +34,19 @@ R2_score = Array_Metrics.r2
 
 from utils.prepare_data import prepare_data, prepare_forecast_observation_df
 
-historical_data_path = '../historical/data/'
+#historical_data_path = '../historical/data/'
 
 class Ensemble_Model():
     '''
     這個 class 建立的 instance 是一個可以預測某個 feature (i.e.: 太陽能) 的模型集成 API
     '''
-    def __init__(self, Y_feature, model_path='None', X_feature_dict=None, hyperparameters_dict=None, data_path=None, weights='uniform',
-                 start_date='2023-08-01', end_date='2024-09-30', test_size=0.2, test_last_fold=False, apply_night_peak=False,
-                 NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None, remove_night_peak_samples=True):
+    def __init__(self, Y_feature, 
+                 model_path='None', 
+                 X_feature_dict=None, hyperparameters_dict=None, weights='uniform',
+                 data_path=None, start_date='2023-08-01', end_date='2024-09-30',
+                 test_size=0.2, test_last_fold=False,
+                 apply_night_peak=False, NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
+                 remove_night_peak_samples=True):
 
         self.station_list = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠']
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
@@ -68,14 +72,15 @@ class Ensemble_Model():
             self.mode = 'classifier'
             self.varify_metric = f1_score
 
-        if Y_feature in ['風力', '太陽能', '尖峰負載', '夜尖峰']:
+        if self.Y_feature in ['風力', '太陽能', '尖峰負載', '夜尖峰']:
             self.predict_way = 'obs_to_pwd'
-        elif Y_feature in ['日照率', '最高氣溫', '最低氣溫', '氣溫', '風速']:
+        elif self.Y_feature in ['日照率', '最高氣溫', '最低氣溫', '氣溫', '風速']:
             self.predict_way = 'fore_to_obs'
-        
+
+        # 如果有給 model_path，就從裡面讀取模型
         if not model_path == 'None':
-            if os.path.exists(model_path + f'{Y_feature}/'):
-                self.load_model(model_path + f'{Y_feature}/')
+            if os.path.exists(model_path + f'{self.Y_feature}/'):
+                self.load_model(model_path + f'{self.Y_feature}/')
             else:
                 raise ValueError('model_path does not exist.')
             return None
@@ -206,7 +211,8 @@ class Ensemble_Model():
                 input_f = self.calculate_input_x_feature_num(model_label)
                 output_f = 1
                 feature_counts = [16, 16, 16, 8]
-                model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts, mode='classifier', **self.hyperparameters_dict[model_label])
+                model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts,
+                                       mode='classifier', **self.hyperparameters_dict[model_label])
             return model
         if self.mode == 'regressor':
             if model_label == 'LinearRegression':
@@ -225,8 +231,8 @@ class Ensemble_Model():
                 input_f = self.calculate_input_x_feature_num(model_label)
                 output_f = 1
                 feature_counts = [16, 16, 16, 8]
-                model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts,
-                          **self.hyperparameters_dict[model_label])
+                model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts, 
+                                       **self.hyperparameters_dict[model_label])
         return model
 
     def train_ML_model(self, model_label, X_train, Y_train):
@@ -387,14 +393,22 @@ class Ensemble_Model():
             self.Night_Peak_Model.save_model(NP_path)
 
     def load_model(self, model_path):
+
+        def get_x_cols(filename):
+            with open(filename, 'r', encoding='utf-8-sig'):
+                X_cols_str = f.read()
+            return X_cols_str.split(', ')[0:-1]
+
         self.load_model_metadata(model_path + 'meta.json')
         self.data_df = pd.read_csv(model_path + 'data.csv')
         self.train_df = pd.read_csv(model_path + 'training_set.csv')
 
         self.model_labels = list(self.X_feature_dict.keys())
+        
+        self.X_cols = {model_label: get_x_cols(f'{model_path}{model_label}/X_columns.txt') for model_label in self.model_labels}
+        self.scalers = {model_label: joblib.load(f'{model_path}{model_label}/XScaler.pkl') for model_label in self.model_labels}
+        
         self.models = {}
-        self.X_cols = {}
-        self.scalers = {}
         for model_label in self.model_labels:
             this_path = model_path + f'{model_label}/'
             if model_label == 'FCN':
@@ -402,21 +416,6 @@ class Ensemble_Model():
                 self.models[model_label].load_weight(this_path + 'model/')
             else:
                 self.models[model_label] = joblib.load(this_path + 'model.pkl')
-                
-            self.scalers[model_label] = joblib.load(this_path + 'XScaler.pkl')
-            
-            try:
-                try:
-                    with open(this_path + 'X_columns.txt', 'r', encoding='utf-8-sig') as f:
-                        X_cols_str = f.read()
-                except:
-                    with open(this_path + 'X_columns.txt', 'r', encoding='big5') as f:
-                        X_cols_str = f.read()
-            except:
-                with open(this_path + 'X_columns.txt', 'r', encoding='utf-8') as f:
-                    X_cols_str = f.read()
-
-            self.X_cols[model_label] = X_cols_str.split(', ')[0:-1]
                 
         if self.Y_feature == '太陽能' and self.apply_night_peak:
             NP_path = model_path + 'NP_model/'
