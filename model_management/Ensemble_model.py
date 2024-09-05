@@ -239,8 +239,6 @@ class Ensemble_Model():
             else:
                 raise ValueError(f'model_label "{model_label}" is not in preset list.')
             return model
-        else:
-            raise ValueError('Model mode should be either "regressor" or "classifier".')
 
     def save_model_metadata(self, file_path):
         output_dict = {
