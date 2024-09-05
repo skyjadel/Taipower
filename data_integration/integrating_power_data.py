@@ -3,8 +3,8 @@ import pandas as pd
 import datetime
 import numpy as np
 
-test_sql_fn = './../../realtime/realtime_data/realtime.db'
-test_hd_path = '../../historical copy/data/'
+test_sql_fn = '../realtime/realtime_data/realtime.db'
+test_hd_path = '../historical/data/'
 
 generator_translation_dict = {
     '興達': ['興達CC'],
@@ -139,4 +139,4 @@ def main(sql_db_fn, historical_data_path, solar_energy_day_only):
 if __name__ == '__main__':
     print('Start!')
     print(test_hd_path)
-    main(test_sql_fn, test_hd_path, solar_energy_day_only=True)
+    main(test_sql_fn, test_hd_path, solar_energy_day_only=False)
