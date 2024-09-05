@@ -37,8 +37,29 @@ from utils.prepare_data import prepare_data, prepare_forecast_observation_df
 #historical_data_path = '../historical/data/'
 
 class Ensemble_Model():
-    '''
-    這個 class 建立的 instance 是一個可以預測某個 feature (i.e.: 太陽能) 的模型集成 API
+    '''預測某個 feature (i.e.: 太陽能) 的模型集成 API
+    Args:
+        Y_feature (str): 預測 feature
+        model_path (str, optional): 現成模型的位置，若有提供則從裡面讀取模型
+        X_feature_dict (dict, optional): 集成學習的每個模型輸入的特徵列表
+        hyperparameters_dict (dict, optional): 每個模型的超參數
+        weights (dict or str, optional): 集成學習的權重
+        data_path (str, optional): 訓練模型用資料的路徑
+        start_date (str, optional): 訓練集資料的開始時間，若早於資料庫的最早時間則以資料庫為準
+        end_date (str, optional): 訓練集資料的結束時間，若早於資料庫的結束時間則以資料庫為準
+        test_size (float, optional): 測試集比例，0~1之間的浮點數，預設為 0.2
+        test_last_fold (bool, optional): 只以最新資料做為測試集，預設為 False
+        apply_night_peak (bool, optional): 是否採取夜尖峰修正，只有在 Y_feature 為太陽能的時候有影響，預設為 False
+        NP_X_feature_dict (dict, optional): 夜尖峰模型使用的特徵，只有在 Y_feature 為太陽能，而且 apply_night_peak 為 True 時會用到
+        NP_hyperparameters_dict (dict, optional): 夜尖峰模型使用的超參數，只有在 Y_feature 為太陽能，而且 apply_night_peak 為 True 時會用到
+        NP_weights (dict, optional): 夜尖峰模型使用的權重，只有在 Y_feature 為太陽能，而且 apply_night_peak 為 True 時會用到
+        remove_night_peak_samples (bool, optional): 訓練時是否排除夜尖峰樣本，只有在 Y_feature 為太陽能的時候有影響，預設為 True
+
+    Main Methods:
+        train(): 訓練模型，不需另外輸入參數
+        predict(): 利用模型做預測，需要輸入一個 pandas DataFrame 包含模型所需的所有特徵，回傳預測值
+        save_model(): 儲存模型參數，需要輸入儲存路徑，若路徑不存在會自動建立
+        load_model(): 讀取模型參數，需要輸入模型檔案路徑
     '''
     def __init__(self, Y_feature, 
                  model_path='None', 
