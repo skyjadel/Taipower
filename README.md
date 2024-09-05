@@ -50,6 +50,8 @@ Fully-Connected Neural Network
 
 ./trained_model_parameters  
 存放現行模型 (latest_model 資料夾) 以及用來訓練新模型使用的超參數
+裡面一個資料夾如果名稱沒有包含 meta ，則存有一個完整的模型版本
+名稱包含 meta 的資料夾就只有存放訓練模型用的輸入特徵、超參數，與進行預測時使用的權重
 
 ./airflow-docker  
 存放建立 Docker 所需檔案。這個 Docker 的功能是利用 airflow 定期進行資料爬取、資料整合、模型預測、模型評估、模型訓練等任務  
