@@ -133,6 +133,14 @@ class Ensemble_Model():
         Model_API = api.Model_API(model, L2_factor=L2_factor, classifer=(mode=='classifier'))
         return Model_API
 
+    def fill_nan(self, X):
+        nan_idx = np.where(np.isnan(X))
+        for i in range(nan_idx[0].shape[0]):
+            ri = nan_idx[0][i]
+            ci = nan_idx[1][i]
+            X[ri][ci] = np.nanmean(X[:,ci])
+        return X
+
     def get_XY(self, data_df, Y_feature, X_features=None):
         station_list = self.station_list    
         X_cols = []
@@ -163,17 +171,10 @@ class Ensemble_Model():
         Xs = np.array(data_df[X_cols])
         Ys = np.array(data_df[Y_feature])
 
-
-        # 刪除 Y 的缺失值
+        # 缺失值處理
         Xs = Xs[np.where(~np.isnan(Ys))]
         Ys = Ys[np.where(~np.isnan(Ys))]
-
-        # 補 X 的缺失值
-        nan_idx = np.where(np.isnan(Xs))
-        for i in range(nan_idx[0].shape[0]):
-            ri = nan_idx[0][i]
-            ci = nan_idx[1][i]
-            Xs[ri][ci] = np.nanmean(Xs[:,ci])
+        Xs = self.fill_nan(Xs)
             
         return Xs, Ys, X_cols
 
@@ -298,24 +299,20 @@ class Ensemble_Model():
             self.Night_Peak_Model.test_ind = self.test_ind
             self.Night_Peak_Model.train()
 
+    def get_one_prediction(self, df, model_label):
+        X = np.array(df[self.X_cols[model_label]])
+        X = self.fill_nan(X)
+        X = self.scalers[model_label].transform(X)
+        return self.models[model_label].predict(X)
+
     def predict(self, df, return_all_predictions=False, use_model='Ensemble'):
-        Y_preds = []
-        weights = []
+        Y_preds, weights = [], []
         if self.Y_feature == '太陽能' and self.apply_night_peak:
             night_peak = self.Night_Peak_Model.predict(df)
             day_peak = 1 - np.array(night_peak)
         if use_model == 'Ensemble':
             for model_label in self.model_labels:
-                X = np.array(df[self.X_cols[model_label]])
-                
-                nan_idx = np.where(np.isnan(X))
-                for i in range(nan_idx[0].shape[0]):
-                    ri = nan_idx[0][i]
-                    ci = nan_idx[1][i]
-                    X[ri][ci] = np.nanmean(X[:,ci])
-                
-                X = self.scalers[model_label].transform(X)
-                Y_P = self.models[model_label].predict(X)
+                Y_P = self.get_one_prediction(df, model_label)
                 if self.Y_feature == '太陽能' and self.apply_night_peak:
                     Y_P *= day_peak
                 Y_preds.append(Y_P)
@@ -328,23 +325,13 @@ class Ensemble_Model():
             if self.mode == 'classifier':
                 final_prediction[np.where(final_prediction>=0.5)] = 1
                 final_prediction[np.where(final_prediction<0.5)] = 0
+                
             if return_all_predictions:
                 return final_prediction, Y_preds
             return final_prediction
+            
         elif use_model in self.model_labels:
-            model_label = use_model
-            X = np.array(df[self.X_cols[model_label]])
-
-
-            nan_idx = np.where(np.isnan(X))
-            for i in range(nan_idx[0].shape[0]):
-                ri = nan_idx[0][i]
-                ci = nan_idx[1][i]
-                X[ri][ci] = np.nanmean(X[:,ci])
-                
-            X = self.scalers[model_label].transform(X)
-            Y_P = self.models[model_label].predict(X)
-            return Y_P
+            return self.get_one_prediction(df, use_model)
         else:
             raise ValueError(f'The string "{use_model}" is not included in the model labels. Must choose from {list(self.model_labels)} or "Ensemble".')
 
