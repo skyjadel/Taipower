@@ -39,7 +39,7 @@ from utils.prepare_data import prepare_data, prepare_forecast_observation_df
 class Ensemble_Model():
     '''預測某個 feature (i.e.: 太陽能) 的模型集成 API
     Args:
-        Y_feature (str): 預測 feature
+        Y_feature (str): 被預測的 feature
         model_path (str, optional): 現成模型的位置，若有提供則從裡面讀取模型
         X_feature_dict (dict, optional): 集成學習的每個模型輸入的特徵列表，若沒有引入 model_path 則為必須引數
         hyperparameters_dict (dict, optional): 每個模型的超參數，若沒有引入 model_path 則為必須引數
