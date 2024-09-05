@@ -41,10 +41,10 @@ class Ensemble_Model():
     Args:
         Y_feature (str): 預測 feature
         model_path (str, optional): 現成模型的位置，若有提供則從裡面讀取模型
-        X_feature_dict (dict, optional): 集成學習的每個模型輸入的特徵列表
-        hyperparameters_dict (dict, optional): 每個模型的超參數
-        weights (dict or str, optional): 集成學習的權重
-        data_path (str, optional): 訓練模型用資料的路徑
+        X_feature_dict (dict, optional): 集成學習的每個模型輸入的特徵列表，若沒有引入 model_path 則為必須引數
+        hyperparameters_dict (dict, optional): 每個模型的超參數，若沒有引入 model_path 則為必須引數
+        weights (dict or str, optional): 集成學習的權重，若沒有引入 model_path 則為必須引數
+        data_path (str, optional): 訓練模型用資料的路徑，若沒有引入 model_path 則為必須引數
         start_date (str, optional): 訓練集資料的開始時間，若早於資料庫的最早時間則以資料庫為準
         end_date (str, optional): 訓練集資料的結束時間，若早於資料庫的結束時間則以資料庫為準
         test_size (float, optional): 測試集比例，0~1之間的浮點數，預設為 0.2
@@ -60,6 +60,7 @@ class Ensemble_Model():
         predict(): 利用模型做預測，需要輸入一個 pandas DataFrame 包含模型所需的所有特徵，回傳預測值
         save_model(): 儲存模型參數，需要輸入儲存路徑，若路徑不存在會自動建立
         load_model(): 讀取模型參數，需要輸入模型檔案路徑
+        varify(): 輸入一個 pandas DataFrame 包含 X 與 Y_truth，回傳一個 DataFrame 回報主模型與各個子模型的預測成績
     '''
     def __init__(self, Y_feature, 
                  model_path='None', 
