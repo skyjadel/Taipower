@@ -408,7 +408,7 @@ class Ensemble_Model():
     def load_model(self, model_path):
         
         def get_x_cols(filename):
-            with open(filename, 'r', encoding='utf-8-sig'):
+            with open(filename, 'r', encoding='utf-8-sig') as f:
                 X_cols_str = f.read()
             return X_cols_str.split(', ')[0:-1]
 
