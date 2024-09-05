@@ -34,7 +34,6 @@ R2_score = Array_Metrics.r2
 
 from utils.prepare_data import prepare_data, prepare_forecast_observation_df
 
-#historical_data_path = '../historical/data/'
 
 class Ensemble_Model():
     '''預測某個 feature (i.e.: 太陽能) 的模型集成 API
@@ -62,6 +61,7 @@ class Ensemble_Model():
         load_model(): 讀取模型參數，需要輸入模型檔案路徑
         varify(): 輸入一個 pandas DataFrame 包含 X 與 Y_truth，回傳一個 DataFrame 回報主模型與各個子模型的預測成績
     '''
+
     def __init__(self, Y_feature, 
                  model_path=None, 
                  X_feature_dict=None, hyperparameters_dict=None, weights='uniform',
@@ -139,7 +139,8 @@ class Ensemble_Model():
                                                     data_path=data_path,
                                                     start_date=start_date,
                                                     end_date=end_date)      
-        
+
+
     # Define Fully Connected Network Model
     def FCN_model(self, input_f, output_f, feature_counts=[16, 16, 16, 8], feature_count_label=None, dropout_factor=0, L2_factor=1e-15, mode='regressor'):
         feature_count_dict = {
@@ -160,6 +161,7 @@ class Ensemble_Model():
         Model_API = api.Model_API(model, L2_factor=L2_factor, classifer=(mode=='classifier'))
         return Model_API
 
+
     def fill_nan(self, X):
         nan_idx = np.where(np.isnan(X))
         for i in range(nan_idx[0].shape[0]):
@@ -167,6 +169,7 @@ class Ensemble_Model():
             ci = nan_idx[1][i]
             X[ri][ci] = np.nanmean(X[:,ci])
         return X
+
 
     def get_XY(self, data_df, Y_feature, X_features=None):
         station_list = self.station_list    
@@ -205,20 +208,24 @@ class Ensemble_Model():
             
         return Xs, Ys, X_cols
 
+
     def get_train_and_test_index(self, n_samples, test_size=0.2, test_last_fold=False):
         shuffle = not test_last_fold
         train_idx, test_idx, _, _ = train_test_split(np.arange(n_samples), np.arange(n_samples), test_size=test_size, shuffle=shuffle)
         return train_idx, test_idx
+
 
     def get_train_and_test_data(self, Xs, Ys, test_size=0.2, test_last_fold=False):
         shuffle = not test_last_fold
         X_train, X_test, Y_train, Y_test = train_test_split(Xs, Ys, test_size=test_size, shuffle=shuffle)
         return X_train, X_test, Y_train, Y_test
 
+
     def calculate_input_x_feature_num(self, model_label):
         Y_feature = '太陽能' if self.Y_feature == '夜尖峰' else self.Y_feature
         Xs, _, _ = self.get_XY(self.data_df, Y_feature=Y_feature, X_features=self.X_feature_dict[model_label])
         return Xs.shape[1]
+
 
     def assign_model(self, model_label):
         if self.mode == 'classifier':
@@ -252,7 +259,8 @@ class Ensemble_Model():
             elif model_label == 'XGBoost':
                 model = XGBRegressor(**self.hyperparameters_dict[model_label])
             elif model_label == 'LightGBM':
-                model = LGBMRegressor(force_col_wise=True, verbose=-1, **self.hyperparameters_dict[model_label])
+                model = LGBMRegressor(force_col_wise=True, verbose=-1,
+                                      **self.hyperparameters_dict[model_label])
             elif model_label == 'SVR':
                 model = SVR(**self.hyperparameters_dict[model_label])
             elif model_label == 'NuSVR':
@@ -266,6 +274,7 @@ class Ensemble_Model():
             else:
                 raise ValueError(f'model_label "{model_label}" is not in preset list.')
             return model
+
 
     def save_model_metadata(self, file_path):
         output_dict = {
@@ -282,6 +291,7 @@ class Ensemble_Model():
         with open(file_path, 'w') as f:
             json.dump(output_dict, f)
 
+
     def load_model_metadata(self, file_path):
         with open(file_path, 'r') as f:
             meta = json.load(f)
@@ -289,12 +299,14 @@ class Ensemble_Model():
         self.hyperparameters_dict = meta['hyperparameters_dict']
         self.weights = meta['weights']
 
+
     def train_ML_model(self, model_label, X_train, Y_train):
         
         self.scalers[model_label] = StandardScaler().fit(X_train)
         X_train = self.scalers[model_label].transform(X_train)
         
         _ = self.models[model_label].fit(X_train, Y_train)
+
 
     def train_DL_model(self, model_label, X_train, Y_train):
 
@@ -305,6 +317,7 @@ class Ensemble_Model():
         X_val = self.scalers[model_label].transform(X_val)
         
         _ = self.models[model_label].fit(X_train, Y_train, X_val, Y_val)
+
 
     def train(self):
         if not hasattr(self, 'train_ind'):
@@ -330,11 +343,13 @@ class Ensemble_Model():
             self.Night_Peak_Model.test_ind = self.test_ind
             self.Night_Peak_Model.train()
 
+
     def get_one_prediction(self, df, model_label):
         X = np.array(df[self.X_cols[model_label]])
         X = self.fill_nan(X)
         X = self.scalers[model_label].transform(X)
         return self.models[model_label].predict(X)
+
 
     def predict(self, df, return_all_predictions=False, use_model='Ensemble'):
         Y_preds, weights = [], []
@@ -366,6 +381,7 @@ class Ensemble_Model():
         else:
             raise ValueError(f'The string "{use_model}" is not included in the model labels. Must choose from {list(self.model_labels)} or "Ensemble".')
 
+
     def varify(self, return_var_df=False, var_df=None):
         if var_df is None:
             var_df = self.data_df.iloc[self.test_ind].reset_index(drop=True)
@@ -383,6 +399,7 @@ class Ensemble_Model():
         if return_var_df:
             return result_df, var_df
         return result_df
+
 
     def save_model(self, model_path):
         os.makedirs(model_path, exist_ok=True)
@@ -409,6 +426,7 @@ class Ensemble_Model():
             NP_path = model_path + 'NP_model/'
             os.makedirs(NP_path, exist_ok=True)
             self.Night_Peak_Model.save_model(NP_path)
+
 
     def load_model(self, model_path):
         
