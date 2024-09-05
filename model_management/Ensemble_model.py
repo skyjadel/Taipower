@@ -37,18 +37,29 @@ from utils.prepare_data import prepare_data, prepare_forecast_observation_df
 historical_data_path = '../historical/data/'
 
 class Ensemble_Model():
+    '''
+    這個 class 建立的 instance 是一個可以預測某個 feature (i.e.: 太陽能) 的模型集成 API
+    '''
     def __init__(self, Y_feature, model_path='None', X_feature_dict=None, hyperparameters_dict=None, data_path=None, weights='uniform',
                  start_date='2023-08-01', end_date='2024-09-30', test_size=0.2, test_last_fold=False, apply_night_peak=False,
                  NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None, remove_night_peak_samples=True):
 
         self.station_list = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠']
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
-        self.forecast_features = ['晴', '多雲', '陰', '短暫陣雨', '短暫陣雨或雷雨', '午後短暫雷陣雨', '陣雨或雷雨', '溫度', '降水機率', '相對溼度', '風速', '東西風', '南北風']
+        self.forecast_features = ['晴', '多雲', '陰', '短暫陣雨', '短暫陣雨或雷雨', '午後短暫雷陣雨', '陣雨或雷雨',
+                                  '溫度', '降水機率', '相對溼度', '風速', '東西風', '南北風']
         self.single_column_names = ['日期數字', '假日', '週六', '週日', '補班', '1~3月', '11~12月']
 
         self.Y_feature = Y_feature
         self.apply_night_peak = apply_night_peak
         self.remove_night_peak_samples = remove_night_peak_samples
+        self.X_feature_dict = X_feature_dict
+        self.hyperparameters_dict = hyperparameters_dict
+        self.start_date = start_date
+        self.end_date = end_date
+        self.data_path = data_path
+        self.test_size = test_size
+        self.test_last_fold = test_last_fold
 
         if self.Y_feature in ['風力', '太陽能', '尖峰負載', '日照率', '最高氣溫', '最低氣溫', '氣溫', '風速']:
             self.mode = 'regressor'
@@ -69,31 +80,21 @@ class Ensemble_Model():
                 raise ValueError('model_path does not exist.')
             return None
 
-                
-        self.X_feature_dict = X_feature_dict
-        self.hyperparameters_dict = hyperparameters_dict
-        self.start_date = start_date
-        self.end_date = end_date
-        self.data_path = data_path
-        self.test_size = test_size
-        self.test_last_fold = test_last_fold
-
         if self.predict_way == 'obs_to_pwd':
             self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
         elif self.predict_way == 'fore_to_obs':
             self.data_df = prepare_forecast_observation_df(self.data_path, start_date=self.start_date, end_date=self.end_date)
             
         self.model_labels = list(self.X_feature_dict.keys())
-        
-        self.models = {}
+        self.models = {model_label: self.assign_model(model_label) for model_label in self.model_labels}
+                     
         self.scalers = {}
         self.X_cols = {}
-        for model_label in self.model_labels:
-            self.models[model_label] = self.assign_model(model_label)
+        # for model_label in self.model_labels:
+        #     self.models[model_label] = self.assign_model(model_label)
+        self.weights = weights
         if weights == 'uniform':
             self.weights = {label: 1/len(self.model_labels) for label in self.model_labels}
-        else:
-            self.weights = weights
 
         if self.Y_feature in ['太陽能', '夜尖峰']:
             self.data_df['夜尖峰'] = [0 if se > 50 else 1 for se in self.data_df['太陽能']]
