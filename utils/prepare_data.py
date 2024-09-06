@@ -26,6 +26,7 @@ FIRST_DATE_STR = '2023-01-01'
 start_date = datetime.datetime.strptime('2023-01-01', '%Y-%m-%d')
 end_date = datetime.datetime.strptime('2200-06-30', '%Y-%m-%d')
 
+
 def convert_str_to_datetime(string):
     if not type(string) == str:
         return string
@@ -48,13 +49,14 @@ def convert_str_to_datetime(string):
         except:
             return None
 
+
 def designate_date_range(df, date_column, start_date, end_date):
     df = df[df[date_column] >= start_date]
     out_df = df[df[date_column] <= end_date].reset_index(drop=True)
     return out_df
 
+
 def delete_and_fill_na(df):
-    # 刪除與填補缺失值
     nan_series = df.isna().sum()
     delete_columns = []
     for col in nan_series.index:
@@ -204,6 +206,8 @@ def read_historical_forecast_data(data_fn, start_date, end_date, transform_colum
 
     return forecast_df
 
+
+# 加入日期數字、假日、白天長度等可以由日期決定的資訊
 def add_date_related_information(df):
     # 日期數字化
     date_num = []
@@ -236,6 +240,7 @@ def add_date_related_information(df):
 
     return df
 
+
 def prepare_forecast_observation_df(historical_data_path, start_date=start_date, end_date=end_date):
     start_date = convert_str_to_datetime(start_date)
     end_date = convert_str_to_datetime(end_date)
@@ -258,6 +263,7 @@ def prepare_forecast_observation_df(historical_data_path, start_date=start_date,
     fore_obs_df = pd.merge(forecast_df, observation_df, on=['站名', '日期'], how='inner')
     return fore_obs_df
 
+
 def prepare_forecast_power_df(historical_data_path, start_date=start_date, end_date=end_date):
     start_date = convert_str_to_datetime(start_date)
     end_date = convert_str_to_datetime(end_date)
@@ -279,7 +285,6 @@ def prepare_forecast_power_df(historical_data_path, start_date=start_date, end_d
 
     return forecast_power_df
 
-    
 
 def prepare_observation_power_df(historical_data_path, start_date=start_date, end_date=end_date):
     start_date = convert_str_to_datetime(start_date)
@@ -300,6 +305,7 @@ def prepare_observation_power_df(historical_data_path, start_date=start_date, en
 
     return weather_power_df
 
+
 def prepare_data(historical_data_path, start_date=start_date, end_date=end_date):
     weather_power_df = prepare_observation_power_df(historical_data_path=historical_data_path, start_date=start_date, end_date=end_date)
     return weather_power_df
@@ -307,6 +313,7 @@ def prepare_data(historical_data_path, start_date=start_date, end_date=end_date)
 ref_cols = ['日期', '氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', 
             '日期數字', '假日', '週六', '週日', '補班', '1~3月', '11~12月',
             '風力', '太陽能', '尖峰負載', '白日長度', '夜尖峰']
+
 
 def prepare_model_input_df(historical_data_path, ref_cols=ref_cols):
     weather_power_df = prepare_data(historical_data_path)
