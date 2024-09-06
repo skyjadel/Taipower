@@ -281,7 +281,7 @@ class Model_API():
 
     # 讀取模型參數
     def load_weight(self, file_path):
-        self.model.load_state_dict(torch.load(file_path + 'FCN.pt'))
+        self.model.load_state_dict(torch.load(file_path + 'FCN.pt', map_location=device))
         if os.path.exists(file_path + 'scalerX.model'):
             self.scalerX = joblib.load(file_path + 'scalerX.model')
         if os.path.exists(file_path + 'scalerY.model'):
