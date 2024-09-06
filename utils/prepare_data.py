@@ -19,6 +19,9 @@ town_and_station = {
 import utils.power_generation_types as power_types #各發電機組屬於哪種發電方式的定義檔
 from utils.holidays import *
 
+# 日期數字化的第 0 天
+FIRST_DATE_STR = '2023-01-01'
+
 #定義歷史資料的時間範圍
 start_date = datetime.datetime.strptime('2023-01-01', '%Y-%m-%d')
 end_date = datetime.datetime.strptime('2200-06-30', '%Y-%m-%d')
@@ -204,7 +207,7 @@ def read_historical_forecast_data(data_fn, start_date, end_date, transform_colum
 def add_date_related_information(df):
     # 日期數字化
     date_num = []
-    first_date = datetime.datetime.strptime('2023-01-01', '%Y-%m-%d')
+    first_date = datetime.datetime.strptime(FIRST_DATE_STR, '%Y-%m-%d')
     for i in range(len(df)):
         this_date = df['日期'].iloc[i]
         date_num.append((this_date - first_date)/datetime.timedelta(days=1))
