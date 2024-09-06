@@ -1,6 +1,8 @@
 import sqlite3
 import pandas as pd
 import datetime
+from utils.station_info import town_and_station
+
 strptime = datetime.datetime.strptime
 strftime = datetime.datetime.strftime
 
@@ -8,14 +10,7 @@ strftime = datetime.datetime.strftime
 test_sql_fn = './../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
 
-station_and_town = {
-    '臺北': '臺北市中正區',
-    '高雄': '高雄市楠梓區',
-    '嘉義': '嘉義市西區',
-    '東吉島': '澎湖縣望安鄉',
-    '臺中電廠': '臺中市龍井區',
-    '臺西': '雲林縣臺西鄉'
-}
+station_and_town = {station: town for town, station in town_and_station.items()}
 
 wind_direction_dict = {'偏北風':360,
                        '偏南風':180,

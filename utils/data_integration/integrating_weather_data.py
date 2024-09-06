@@ -4,21 +4,11 @@ import datetime
 import numpy as np
 
 from utils.sun_light import calculate_daytime, calculate_all_day_sunlight
+from utils.station_info import site_location_dict
 
-#sql_db_fn = './realtime/realtime_data/realtime.db'
-#historical_data_path = './historical/data/'
 test_sql_fn = './../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
 
-# 各站經緯度與海拔
-site_location_dict = {
-    '臺北': {'lat':'25.037658' ,'lon':'121.514853', 'elevation':6.26},
-    '高雄': {'lat':'22.73043151' ,'lon':'120.3125156', 'elevation':11.79},
-    '嘉義': {'lat':'23.495925' ,'lon':'120.4329056', 'elevation':26.9},
-    '東吉島': {'lat':'23.25695' ,'lon':'119.6674667', 'elevation':44.5},
-    '臺西': {'lat':'23.701544' ,'lon':'120.197547', 'elevation':12},
-    '臺中電廠': {'lat':'24.214642' ,'lon':'120.490744', 'elevation':25},
-}
 
 def sun_light_time_to_energy(hr):
     return hr * 2.5198 + 8.6888
@@ -130,7 +120,6 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn):
     cursor = conn.cursor()
     
     sql_command = f"SELECT * FROM observation WHERE obs_time > '{date_str} 00:00:00' AND obs_time <= '{date_str_2nd_day} 00:00:00' AND station = '{station}'"
-    #print(sql_command)
     cursor.execute(sql_command)
     
     sql_output = cursor.fetchall()
@@ -183,16 +172,6 @@ def main(sql_db_fn, historical_data_path, time_zone='TWN'):
     date_yesterday = time_now.date() - datetime.timedelta(days=1)
     if time_now.hour < 1 and time_now.minute <= 15:
         date_yesterday -= datetime.timedelta(days=1)
-    # if time_zone == 'TWN':
-    #     date_yesterday = time_now.date() - datetime.timedelta(days=1)
-    #     if time_now.hour < 3:
-    #         date_yesterday -= datetime.timedelta(days=1)
-    # elif time_zone == 'UTC':
-    #     if time_now.hour >= 19:
-    #         date_yesterday = time_now.date()
-    #     else:
-    #         date_yesterday = time_now.date() - datetime.timedelta(days=1)
-
 
     station_list = site_location_dict.keys()
     new_data = []

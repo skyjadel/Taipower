@@ -10,6 +10,8 @@ from model_management.Ensemble_model import Ensemble_Model
 from utils.sun_light import calculate_all_day_sunlight
 from utils.holidays import *
 from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data, add_date_related_information
+from utils.convert_wind_info import polar_to_cartesian_coord
+from utils.station_info import *
 
 from Pytorch_models.metrics import Array_Metrics
 MAE = Array_Metrics.mae
@@ -20,20 +22,13 @@ train_model_main_path = './trained_model_parameters/'
 meta_path = './trained_model_parameters/model_meta_2024-08-11/'
 model_path = train_model_main_path + f'latest_model/'
 
+
 def SunLightRate_to_SunFlux(rate, station, date):
-    site_location_dict = {
-        '臺北': {'lat':'25.037658' ,'lon':'121.514853', 'elevation':6.26},
-        '高雄': {'lat':'22.73043151' ,'lon':'120.3125156', 'elevation':11.79},
-        '嘉義': {'lat':'23.495925' ,'lon':'120.4329056', 'elevation':26.9},
-        '東吉島': {'lat':'23.25695' ,'lon':'119.6674667', 'elevation':44.5},
-        '臺西': {'lat':'23.701544' ,'lon':'120.197547', 'elevation':12},
-        '臺中電廠': {'lat':'24.214642' ,'lon':'120.490744', 'elevation':25},
-    }
-    
     site = site_location_dict[station]
     relative_sun_flux = calculate_all_day_sunlight(site, date)
     sun_flux = relative_sun_flux * rate * 2.5198 / 100 + 8.6888
     return sun_flux
+
 
 def convert_weather_df(weather_df):
     weather_df = convert_weather_obseravtion_data(weather_df)
@@ -42,26 +37,12 @@ def convert_weather_df(weather_df):
 
 
 def convert_forecast_data(input_forecast_df):
-    town_and_station = {
-        '臺北市中正區': '臺北',
-        '高雄市楠梓區': '高雄',
-        '嘉義市西區': '嘉義',
-        '澎湖縣望安鄉': '東吉島',
-        '臺中市龍井區': '臺中電廠',
-        '雲林縣臺西鄉': '臺西'
-    }
 
     forecast_df = deepcopy(input_forecast_df)
     forecast_df['站名'] = [town_and_station[town] for town in forecast_df['鄉鎮']]
 
     for hr in range(0, 24, 3):
-        wind_speed = list(forecast_df[f'風速_{hr}'])
-        wind_direction = list(forecast_df[f'風向_{hr}'] / 180 * np.pi)
-        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-        forecast_df[f'東西風_{hr}'] = EW_wind
-        forecast_df[f'南北風_{hr}'] = NS_wind
-        forecast_df.drop([f'風向_{hr}'], axis=1, inplace=True)
+        forecast_df = polar_to_cartesian_coord(forecast_df, [f'風速_{hr}', f'風向_{hr}'], [f'東西風_{hr}', f'南北風_{hr}'])
     
     column_map = {}
     for col in forecast_df.columns:
@@ -69,6 +50,7 @@ def convert_forecast_data(input_forecast_df):
             column_map[col] = col.replace('_', '預報_')
     forecast_df.rename(column_map, axis=1, inplace=True)
     return forecast_df
+
 
 def predict_weather_features(model_path: str, input_forecast_df: DataFrame):
     forecast_df = convert_forecast_data(input_forecast_df) 
@@ -88,6 +70,7 @@ def predict_weather_features(model_path: str, input_forecast_df: DataFrame):
     output_df['全天空日射量'] = sun_flux
     return output_df
 
+
 def predict_power_features(model_path: str, input_weather_df: DataFrame):
     weather_df = convert_weather_df(input_weather_df)
     output_df = deepcopy(weather_df[['日期']])
@@ -100,7 +83,9 @@ def predict_power_features(model_path: str, input_weather_df: DataFrame):
         output_df[Y_feature] = Y_pred
     return output_df
 
+
 def evaluation(data_path=data_path, moving_mae_days=7):
+
     # 讀取正確答案與預測答案並合併成一張表
     power_df = read_historical_power_data(data_path + 'power/power_generation_data.csv')
     power_pred_df = pd.read_csv(data_path + 'prediction/power.csv')
@@ -126,6 +111,7 @@ def evaluation(data_path=data_path, moving_mae_days=7):
     combined_df.loc[len(combined_df)] = ['歷史標準差', '-', '-', ref_df['歷史標準差'].iloc[0], '-', '-', ref_df['歷史標準差'].iloc[1], '-', '-', ref_df['歷史標準差'].iloc[2]]
     combined_df.to_csv(data_path+'prediction/evaluation.csv', index=False, encoding='utf-8-sig')
     return combined_df
+
 
 def main_predict(data_path: str = data_path,
                  model_path: str = model_path,
@@ -220,6 +206,7 @@ def main_predict(data_path: str = data_path,
         ref_df.to_csv(ref_filename, index=False, encoding='utf-8-sig')
     
     return new_power_pred_df
+
 
 if __name__ == '__main__':
     _ = main_predict()

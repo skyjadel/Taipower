@@ -4,15 +4,8 @@ import datetime
 from copy import deepcopy
 
 from utils.sun_light import calculate_daytime
-
-town_and_station = {
-    '臺北市中正區': '臺北',
-    '高雄市楠梓區': '高雄',
-    '嘉義市西區': '嘉義',
-    '澎湖縣望安鄉': '東吉島',
-    '臺中市龍井區': '臺中電廠',
-    '雲林縣臺西鄉': '臺西'
-}
+from utils.station_info import town_and_station
+from utils.convert_wind_info import polar_to_cartesian_coord
 
 import utils.power_generation_types as power_types #各發電機組屬於哪種發電方式的定義檔
 from utils.holidays import *
@@ -133,23 +126,11 @@ def convert_weather_obseravtion_data(input_weather_df, start_date=start_date, en
     # 風向與風速資料轉換        
     if ('風速' in big_weather_df.columns and '風向' in big_weather_df.columns)\
         and not ('東西風' in big_weather_df.columns and '南北風' in big_weather_df.columns):
-        wind_speed = list(big_weather_df['風速'])
-        wind_direction = list(big_weather_df['風向'] / 180 * np.pi)
-        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-        big_weather_df['東西風'] = EW_wind
-        big_weather_df['南北風'] = NS_wind
-        big_weather_df.drop('風向', axis=1, inplace=True)
+        big_weather_df = polar_to_cartesian_coord(big_weather_df, ['風速', '風向'], ['東西風', '南北風'])
     
     if ('最大瞬間風' in big_weather_df.columns and '最大瞬間風風向' in big_weather_df.columns)\
         and not ('東西陣風' in big_weather_df.columns and '南北陣風' in big_weather_df.columns):
-        wind_speed = list(big_weather_df['最大瞬間風'])
-        wind_direction = list(big_weather_df['最大瞬間風風向'] / 180 * np.pi)
-        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-        big_weather_df['東西陣風'] = EW_wind
-        big_weather_df['南北陣風'] = NS_wind
-        big_weather_df.drop('最大瞬間風風向', axis=1, inplace=True)
+        big_weather_df = polar_to_cartesian_coord(big_weather_df, ['最大瞬間風', '最大瞬間風風向'], ['東西陣風', '南北陣風'])
 
     if transform_columns:
         ## 欄名轉換成 {站名}_{觀測值} 的模式
@@ -174,20 +155,12 @@ def read_historical_weather_observation_data(data_fn, start_date=start_date, end
 
     
 def read_historical_forecast_data(data_fn, start_date, end_date, transform_columns=False):
-    prefixes = [['風速', '風向'], ['最大瞬間風', '最大瞬間風風向']]
     forecast_df = pd.read_csv(data_fn)
     forecast_df['日期'] = pd.to_datetime(forecast_df['日期'])
-
     forecast_df = designate_date_range(forecast_df, '日期', start_date, end_date)
+    
     for hr in range(0, 24, 3):
-        wind_speed = list(forecast_df[f'{prefixes[0][0]}_{hr}'])
-        wind_direction = list(forecast_df[f'{prefixes[0][1]}_{hr}'] / 180 * np.pi)
-        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-        forecast_df[f'東西風_{hr}'] = EW_wind
-        forecast_df[f'南北風_{hr}'] = NS_wind
-
-    forecast_df.drop([f'風向_{hr}'], axis=1, inplace=True)
+        forecast_df = polar_to_cartesian_coord(forecast_df, [f'風速_{hr}', f'風向_{hr}'], [f'東西風_{hr}', f'南北風_{hr}'])
 
     if transform_columns:
         town_names = list(town_and_station.keys())
