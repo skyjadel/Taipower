@@ -101,11 +101,14 @@ def predict_power_features(model_path: str, input_weather_df: DataFrame):
     return output_df
 
 def evaluation(data_path=data_path, moving_mae_days=7):
+    # 讀取正確答案與預測答案並合併成一張表
     power_df = read_historical_power_data(data_path + 'power/power_generation_data.csv')
     power_pred_df = pd.read_csv(data_path + 'prediction/power.csv')
     ref_df = pd.read_csv(data_path + 'prediction/ref.csv')
     power_pred_df['日期'] = pd.to_datetime(power_pred_df['日期'])
     combined_df = pd.merge(power_df, power_pred_df, on='日期', how='inner', suffixes=['', '_預測'])
+
+    # 計算誤差
     output_col_list = ['日期']
     for y_feature in ['風力', '太陽能', '尖峰負載']:
         moving_mae = []
@@ -116,22 +119,43 @@ def evaluation(data_path=data_path, moving_mae_days=7):
             moving_mae.append(mae)
         combined_df[f'{y_feature}{moving_mae_days}日內平均誤差'] = moving_mae
         output_col_list += [y_feature, f'{y_feature}_預測', f'{y_feature}{moving_mae_days}日內平均誤差']
+
+    # 整理、儲存與回傳評估表
     combined_df = combined_df[output_col_list]
     combined_df['日期'] = [datetime.datetime.strftime(d, '%Y-%m-%d') for d in combined_df['日期']]
     combined_df.loc[len(combined_df)] = ['歷史標準差', '-', '-', ref_df['歷史標準差'].iloc[0], '-', '-', ref_df['歷史標準差'].iloc[1], '-', '-', ref_df['歷史標準差'].iloc[2]]
     combined_df.to_csv(data_path+'prediction/evaluation.csv', index=False, encoding='utf-8-sig')
     return combined_df
 
-def main_predict(data_path=data_path, model_path=model_path,
-                 predict_days=7, save_prediction=True, update_prediction=False, avoid_training_set=True):
+def main_predict(data_path: str = data_path,
+                 model_path: str = model_path,
+                 predict_days: int = 7,
+                 save_prediction: bool = True,
+                 update_prediction: bool = False,
+                 avoid_training_set: bool = True):
+    '''主要的預測函數，會產生並儲存天氣與電力預測結果
+    Arg:
+        data_path (str, optional): 預測用資料路徑
+        model_path (str, optional): 預測用模型路徑
+        predict_days (int, optional): 最多預測幾天的資料，預設為 7 天
+        save_prediction (bool, optional): 是否要將預測資料儲存到 data_path 的指定位置，預設為 True
+        update_prediction (bool, optional): 若指定位置的預測資料與新預測資料重複，是否覆寫資料，預設為 False
+        avoid_training_set (bool, optional): 是否限制模型訓練集包含的天數不予預測，預設為 True
+    '''
     
+    # 準備預測結果存放目錄
+    historical_pred_path = data_path + 'prediction/'
+    os.makedirs(historical_pred_path, exist_ok=True)
+    
+    # 讀取預報資料
     forecast_df = pd.read_csv(data_path + 'weather/finalized/weather_forecast.csv')
     forecast_df['日期'] = pd.to_datetime(forecast_df['日期'])
+    
+    # 決定從哪一天開始預測
     latest_date = max(forecast_df['日期'])
     first_date = latest_date - datetime.timedelta(days=predict_days-1)
-    
-    # Avoid doing predictions for dates which are included in the training set of the model.
     if avoid_training_set:
+        # 確保預測資料跟使用模型當初的訓練集不重複
         model_training_df = pd.read_csv(model_path + '太陽能/data.csv')
         model_training_df['日期'] = pd.to_datetime(model_training_df['日期'])
         model_last_date = max(model_training_df['日期'])
@@ -139,14 +163,13 @@ def main_predict(data_path=data_path, model_path=model_path,
         
     forecast_df = forecast_df[forecast_df['日期'] >= first_date]
 
+    # 完成預測
     wDF = predict_weather_features(model_path, input_forecast_df=forecast_df)
     pwd_DF = predict_power_features(model_path, wDF)
     wDF['日期'] = wDF['日期'].dt.date
     pwd_DF['日期'] = pwd_DF['日期'].dt.date
-    
-    historical_pred_path = data_path + 'prediction/'
-    os.makedirs(historical_pred_path, exist_ok=True)
 
+    # 儲存天氣預測資料
     weather_prediction_filename = historical_pred_path + 'weather.csv'
     if os.path.exists(weather_prediction_filename):
         old_weather_pred_df = pd.read_csv(weather_prediction_filename)
@@ -165,6 +188,7 @@ def main_predict(data_path=data_path, model_path=model_path,
         if save_prediction:
             wDF.to_csv(weather_prediction_filename, index=False, encoding='utf-8-sig')
 
+    # 儲存電力預測資料
     power_prediction_filename = historical_pred_path + 'power.csv'
     new_power_pred_df = pwd_DF
     if os.path.exists(power_prediction_filename):
@@ -183,6 +207,7 @@ def main_predict(data_path=data_path, model_path=model_path,
         if save_prediction:
             pwd_DF.to_csv(power_prediction_filename, index=False, encoding='utf-8-sig')
 
+    # 儲存歷史電力資料標準差
     ref_filename = historical_pred_path + 'ref.csv'
     if not os.path.exists(ref_filename):
         ref_dict = {'預測項目':[], '歷史平均':[], '歷史標準差':[]}
