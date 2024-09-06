@@ -61,7 +61,7 @@ services:
       - ../trained_model_parameters/models_tobe_evaluated:/opt/airflow/models_tobe_evaluated
     command: >
       bash -c "
-      sleep 45 &&
+      sleep 30 &&
       airflow scheduler
       "
 
