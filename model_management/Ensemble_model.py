@@ -37,6 +37,7 @@ from utils.prepare_data import prepare_data, prepare_forecast_observation_df
 
 class Ensemble_Model():
     '''預測某個 feature (i.e.: 太陽能) 的模型集成 API
+    如果只是要進行預測，沒有要重新訓練模型，則只需要輸入 Y_feature 與 model_path 兩個引數
     Args:
         Y_feature (str): 被預測的 feature
         model_path (str, optional): 現成模型的位置，若有提供則從裡面讀取模型
@@ -53,6 +54,7 @@ class Ensemble_Model():
         NP_hyperparameters_dict (dict, optional): 夜尖峰模型使用的超參數，只有在 Y_feature 為太陽能，而且 apply_night_peak 為 True 時會用到
         NP_weights (dict, optional): 夜尖峰模型使用的權重，只有在 Y_feature 為太陽能，而且 apply_night_peak 為 True 時會用到
         remove_night_peak_samples (bool, optional): 訓練時是否排除夜尖峰樣本，只有在 Y_feature 為太陽能的時候有影響，預設為 True
+        is_NP_model (bool, optional): 這個模型是不是太陽能模型的附屬夜尖峰模型，預設為 False
 
     Main Methods:
         train(): 訓練模型，不需另外輸入參數

@@ -274,10 +274,10 @@ def main_predict(data_path=data_path, model_path=model_path,
     if not os.path.exists(ref_filename):
         ref_dict = {'預測項目':[], '歷史平均':[], '歷史標準差':[]}
         for y_feature in ['風力', '太陽能', '尖峰負載']:
-            training_df = pd.read_csv(model_path + f'{y_feature}/data.csv')
+            model_data_df = pd.read_csv(model_path + f'{y_feature}/data.csv')
             ref_dict['預測項目'].append(y_feature)
-            ref_dict['歷史平均'].append(np.mean(training_df[y_feature]))
-            ref_dict['歷史標準差'].append(np.std(training_df[y_feature]))
+            ref_dict['歷史平均'].append(np.mean(model_data_df[y_feature]))
+            ref_dict['歷史標準差'].append(np.std(model_data_df[y_feature]))
         ref_df = pd.DataFrame(ref_dict)
         ref_df.to_csv(ref_filename, index=False, encoding='utf-8-sig')
     
