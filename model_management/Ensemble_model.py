@@ -362,6 +362,8 @@ class Ensemble_Model():
             for model_label in self.model_labels:
                 Y_P = self.get_one_prediction(df, model_label)
                 if self.Y_feature == '太陽能' and self.apply_night_peak:
+                    if Y_P.shape == ():
+                        Y_P = np.array(Y_P).reshape(-1,)
                     Y_P *= day_peak
                 Y_preds.append(Y_P)
                 weights.append(self.weights[model_label])
