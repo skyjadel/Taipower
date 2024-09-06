@@ -14,8 +14,6 @@ town_and_station = {
     '雲林縣臺西鄉': '臺西'
 }
 
-#pd.set_option('future.no_silent_downcasting', True)
-
 import utils.power_generation_types as power_types #各發電機組屬於哪種發電方式的定義檔
 from utils.holidays import *
 
