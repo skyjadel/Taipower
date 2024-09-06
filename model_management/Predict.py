@@ -4,11 +4,12 @@ import datetime
 import os
 from copy import deepcopy
 
+from pandas import DataFrame
+
 from model_management.Ensemble_model import Ensemble_Model
 from utils.sun_light import calculate_all_day_sunlight
 from utils.holidays import *
-from utils.prepare_data import read_historical_power_data
-from utils.sun_light import calculate_daytime
+from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data, add_date_related_information
 
 from Pytorch_models.metrics import Array_Metrics
 MAE = Array_Metrics.mae
@@ -34,98 +35,11 @@ def SunLightRate_to_SunFlux(rate, station, date):
     sun_flux = relative_sun_flux * rate * 2.5198 / 100 + 8.6888
     return sun_flux
 
-def fill_na(df):
-    nan_series = df.isna().sum()
-    for col in df.columns:
-        if nan_series[col] > 0:
-            df.fillna({col: np.nanmean(df[col])}, inplace=True)
-    return df
-
-def convert_weather_df(input_weather_df):
-    input_weather_df['日期'] = pd.to_datetime(input_weather_df['日期'])
-    
-    station_names = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠']
-    col_map = {col: col.split('(')[0] for col in input_weather_df.columns}
-
-    big_weather_df = deepcopy(input_weather_df)
-    big_weather_df.rename(columns=col_map, inplace=True)
-
-    ## 把天氣觀測資料轉成數字格式
-    for i in big_weather_df.index:
-        for col in big_weather_df.columns:
-            if not col in ['站名', '日期']:
-                try:
-                    big_weather_df.loc[i, col] = np.float32(big_weather_df.loc[i, col])
-                except:
-                    if big_weather_df.loc[i, col] == 'T':
-                        big_weather_df.loc[i, col] = 0
-                    else:
-                        big_weather_df.loc[i, col] = np.nan
-
-    if ('風速' in big_weather_df.columns and '風向' in big_weather_df.columns)\
-        and not ('東西風' in big_weather_df.columns and '南北風' in big_weather_df.columns):
-        wind_speed = list(big_weather_df['風速'])
-        wind_direction = list(big_weather_df['風向'] / 180 * np.pi)
-        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-        big_weather_df['東西風'] = EW_wind
-        big_weather_df['南北風'] = NS_wind
-
-        big_weather_df.drop('風向', axis=1, inplace=True)
-
-    if ('最大瞬間風' in big_weather_df.columns and '最大瞬間風風向' in big_weather_df.columns)\
-        and not ('東西陣風' in big_weather_df.columns and '南北陣風' in big_weather_df.columns):
-        wind_speed = list(big_weather_df['最大瞬間風'])
-        wind_direction = list(big_weather_df['最大瞬間風風向'] / 180 * np.pi)
-        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-        big_weather_df['東西陣風'] = EW_wind
-        big_weather_df['南北陣風'] = NS_wind
-
-        big_weather_df.drop('最大瞬間風風向', axis=1, inplace=True)
-
-    ## 欄名轉換成 {站名}_{觀測值} 的模式
-    w_dfs = {}
-    for station in station_names:
-        this_df = big_weather_df[big_weather_df['站名'] == station]
-        w_dfs[station] = this_df.reset_index(drop=True)
-    date_column = w_dfs[station_names[0]]['日期']
-    for station in station_names:
-        w_dfs[station] = w_dfs[station].drop(['日期', '站名'], axis=1)
-
-    weather_df = pd.concat([date_column] + [w_dfs[station].add_suffix(f'_{station}') for station in station_names], axis=1)
-    weather_df = fill_na(weather_df)
-
-    # 日期數字化
-    date_num = []
-    first_date = pd.Timestamp(datetime.date(2023, 8, 1))
-    for i in range(len(weather_df)):
-        this_date = weather_df['日期'].iloc[i]
-        date_num.append((this_date - first_date)/datetime.timedelta(days=1))
-    weather_df['日期數字'] = date_num            
-
-    # 加入假日與工作日變量
-    weather_df['假日'] = [1 if d in holidays else 0 for d in weather_df['日期']]
-    weather_df['週六'] = [1 if d.weekday() == 5 else 0 for d in weather_df['日期']]
-    weather_df['週日'] = [1 if d.weekday() == 6 else 0 for d in weather_df['日期']]
-    weather_df['補班'] = [1 if d.weekday() in adjusted_work_days else 0 for d in weather_df['日期']]
-
-
-    # 加入季節變量
-    weather_df['1~3月'] = [1 if d.month in [1, 2, 3] and np.sum(weather_df[['假日', '週六', '週日']].iloc[i]) == 0 else 0\
-                                for i, d in enumerate(weather_df['日期'])]
-    weather_df['11~12月'] = [1 if d.month in [11, 12] and np.sum(weather_df[['假日', '週六', '週日']].iloc[i]) == 0 else 0\
-                                for i, d in enumerate(weather_df['日期'])]
-    
-    # 加入白天長度
-    site = {
-    'lon': '123.00',
-    'lat': '23.5',
-    'elevation': 0
-    }
-    weather_df['白日長度'] = [calculate_daytime(site, date) for date in weather_df['日期']]
-
+def convert_weather_df(weather_df):
+    weather_df = convert_weather_obseravtion_data(weather_df)
+    weather_df = add_date_related_information(weather_df)
     return weather_df
+
 
 def convert_forecast_data(input_forecast_df):
     town_and_station = {
@@ -156,7 +70,7 @@ def convert_forecast_data(input_forecast_df):
     forecast_df.rename(column_map, axis=1, inplace=True)
     return forecast_df
 
-def predict_weather_features(model_path, input_forecast_df):
+def predict_weather_features(model_path: str, input_forecast_df: DataFrame):
     forecast_df = convert_forecast_data(input_forecast_df) 
     output_df = deepcopy(forecast_df[['日期', '站名']])
     
@@ -174,8 +88,7 @@ def predict_weather_features(model_path, input_forecast_df):
     output_df['全天空日射量'] = sun_flux
     return output_df
 
-
-def predict_power_features(model_path, input_weather_df):
+def predict_power_features(model_path: str, input_weather_df: DataFrame):
     weather_df = convert_weather_df(input_weather_df)
     output_df = deepcopy(weather_df[['日期']])
     

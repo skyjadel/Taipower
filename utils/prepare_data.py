@@ -104,15 +104,15 @@ def read_historical_power_data(data_fn, start_date=start_date, end_date=end_date
 
     return big_power_type_df
 
-def read_historical_weather_observation_data(data_fn, start_date, end_date, transform_columns=True):
-    big_df = pd.read_csv(data_fn)
-    big_df['日期'] = pd.to_datetime(big_df['日期'])
-    big_df = designate_date_range(big_df, '日期', start_date, end_date)
+
+def convert_weather_obseravtion_data(input_weather_df, start_date=start_date, end_date=end_date, transform_columns=True):
+    input_weather_df['日期'] = pd.to_datetime(input_weather_df['日期'])
+    input_weather_df = designate_date_range(input_weather_df, '日期', start_date, end_date)
 
     station_names = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠']
-    col_map = {col: col.split('(')[0] for col in big_df.columns}
+    col_map = {col: col.split('(')[0] for col in input_weather_df.columns}
 
-    big_weather_df = deepcopy(big_df)
+    big_weather_df = deepcopy(input_weather_df)
     big_weather_df.rename(columns=col_map, inplace=True)
 
     ## 把天氣觀測資料轉成數字格式
@@ -127,29 +127,28 @@ def read_historical_weather_observation_data(data_fn, start_date, end_date, tran
                     else:
                         big_weather_df.loc[i, col] = np.nan
     
-    # 風向與風速資料轉換
-        
-    wind_speed = list(big_weather_df['風速'])
-    wind_direction = list(big_weather_df['風向'] / 180 * np.pi)
-    NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-    EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-    big_weather_df[f'東西風'] = EW_wind
-    big_weather_df[f'南北風'] = NS_wind
+    # 風向與風速資料轉換        
+    if ('風速' in big_weather_df.columns and '風向' in big_weather_df.columns)\
+        and not ('東西風' in big_weather_df.columns and '南北風' in big_weather_df.columns):
+        wind_speed = list(big_weather_df['風速'])
+        wind_direction = list(big_weather_df['風向'] / 180 * np.pi)
+        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
+        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
+        big_weather_df['東西風'] = EW_wind
+        big_weather_df['南北風'] = NS_wind
+        big_weather_df.drop('風向', axis=1, inplace=True)
     
-    wind_speed = list(big_weather_df['最大瞬間風'])
-    wind_direction = list(big_weather_df['最大瞬間風風向'] / 180 * np.pi)
-    NS_wind = np.abs(wind_speed * np.cos(wind_direction))
-    EW_wind = np.abs(wind_speed * np.sin(wind_direction))
-    big_weather_df[f'東西陣風'] = EW_wind
-    big_weather_df[f'南北陣風'] = NS_wind
-
-    big_weather_df.drop(['風向', '最大瞬間風風向'], axis=1, inplace=True)
+    if ('最大瞬間風' in big_weather_df.columns and '最大瞬間風風向' in big_weather_df.columns)\
+        and not ('東西陣風' in big_weather_df.columns and '南北陣風' in big_weather_df.columns):
+        wind_speed = list(big_weather_df['最大瞬間風'])
+        wind_direction = list(big_weather_df['最大瞬間風風向'] / 180 * np.pi)
+        NS_wind = np.abs(wind_speed * np.cos(wind_direction))
+        EW_wind = np.abs(wind_speed * np.sin(wind_direction))
+        big_weather_df['東西陣風'] = EW_wind
+        big_weather_df['南北陣風'] = NS_wind
+        big_weather_df.drop('最大瞬間風風向', axis=1, inplace=True)
 
     if transform_columns:
-        ## 刪除不用的欄位
-        X_col_exclude = ['降水量', '降水時數', '相對溼度', '日照時數', '日照率', '最大瞬間風', '東西陣風', '南北陣風']
-        big_weather_df.drop(X_col_exclude, axis=1, inplace=True)
-
         ## 欄名轉換成 {站名}_{觀測值} 的模式
         w_dfs = {}
         for station in station_names:
@@ -160,12 +159,17 @@ def read_historical_weather_observation_data(data_fn, start_date, end_date, tran
             w_dfs[station] = w_dfs[station].drop(['日期', '站名'], axis=1)
 
         weather_df = pd.concat([date_column] + [w_dfs[station].add_suffix(f'_{station}') for station in station_names], axis=1)
-
         weather_df = delete_and_fill_na(weather_df)
-
         return weather_df
+    
     return big_weather_df
 
+
+def read_historical_weather_observation_data(data_fn, start_date=start_date, end_date=end_date, transform_columns=True):
+    big_df = pd.read_csv(data_fn)
+    return convert_weather_obseravtion_data(big_df, start_date=start_date, end_date=end_date, transform_columns=transform_columns)
+
+    
 def read_historical_forecast_data(data_fn, start_date, end_date, transform_columns=False):
     prefixes = [['風速', '風向'], ['最大瞬間風', '最大瞬間風風向']]
     forecast_df = pd.read_csv(data_fn)
