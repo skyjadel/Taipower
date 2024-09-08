@@ -8,6 +8,7 @@ import datetime
 import time
 
 from chatbot import respond_generator as chatbot_response
+from all_tree_df_generator import get_all_tree_df
 
 #----------Initialization-----------
 
@@ -258,6 +259,23 @@ def AI_assistant():
             response = st.write_stream(response_generator(prompt))
         st.session_state.messages.append({"role": "assistant", "content": response})
 
+def tree_map():
+    all_tree_df = get_all_tree_df()
+
+    fig = go.Figure()
+    fig.add_trace(go.Treemap(
+        labels=all_tree_df['id'],
+        parents=all_tree_df['parent'],
+        values=all_tree_df['value'],
+        branchvalues='total',
+        hovertemplate='<b>%{label} </b> <br> 即時發電功率: %{value:.1f} MW<br>',
+        root_color='lightgrey',
+        name=''
+        ))
+    fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
+
+    st.plotly_chart(fig)
+
 #------------Main------------
 
 st.set_page_config(
@@ -268,12 +286,17 @@ st.set_page_config(
 
 st.title('台電綠能尖峰發電預測')
 st.text('By Y. W. Liao')
-tabs = list(st.tabs(y_feature_list + ['聊天機器人']))
+tabs = list(st.tabs(y_feature_list + ['發電結構圖', '聊天機器人']))
 
-for i, tab in enumerate(tabs[0:-1]):
+for i, tab in enumerate(tabs[0:-2]):
     with tab:
         one_tab(y_feature_list[i], second_row_first_col)
 
+with tabs[-2]:
+    tree_map()
+
 with tabs[-1]:
     AI_assistant()
+
+
     
