@@ -1,3 +1,3 @@
 import datetime
 
-startdate = datetime.datetime(2024, 9, 6, 19, 30)
+startdate = datetime.datetime(2024, 9, 8, 8, 0)
