@@ -27,6 +27,7 @@ dag = DAG(
     default_args=default_args,
     description='Run Evaluate_Given_Models.evalute_models() everyday',
     schedule_interval='0 2 * * 6',
+    catchup=False,
 )
 
 run_p = PythonOperator(

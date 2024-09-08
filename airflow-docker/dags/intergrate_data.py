@@ -25,6 +25,7 @@ dag = DAG(
     default_args=default_args,
     description='Run integrating_realtime_data.main() everyday',
     schedule_interval='20 0,19 * * *',
+    catchup=False,
 )
 
 run_p = PythonOperator(

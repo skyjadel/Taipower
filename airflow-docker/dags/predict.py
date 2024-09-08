@@ -25,6 +25,7 @@ dag = DAG(
     default_args=default_args,
     description='Run auto_predict.predict() everyday',
     schedule_interval='25 19 * * *',
+    catchup=False,
 )
 
 run_p = PythonOperator(

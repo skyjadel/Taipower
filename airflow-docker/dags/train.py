@@ -34,6 +34,7 @@ dag = DAG(
     default_args=default_args,
     description='Run auto_train.main_train() everyweek',
     schedule_interval='30 0 * * 0',
+    catchup=False,
 )
 
 run_p = PythonOperator(

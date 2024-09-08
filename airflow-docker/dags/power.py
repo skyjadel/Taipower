@@ -19,6 +19,7 @@ dag = DAG(
     default_args=default_args,
     description='Run p.py main() every 30 minutes',
     schedule_interval='*/30 * * * *',
+    catchup=False,
 )
 
 run_p = PythonOperator(
