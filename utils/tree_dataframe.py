@@ -122,53 +122,70 @@ def sql_df_preprocess(sql_db_fn, date=None):
     return df
 
 
-def get_whole_day_tree_df(sql_db_fn, date=None):
+def get_whole_day_df(sql_db_fn, date=None):
     df = sql_df_preprocess(sql_db_fn, date)
 
-    summation_df = df.groupby('唯一機組名')['Weighted_發電量'].sum().reset_index()
-    summation_df['分類'] = [s.split('+')[0] for s in summation_df['唯一機組名']]
-    summation_df['機組'] = [s.split('+')[1] for s in summation_df['唯一機組名']]
-    summation_df['電廠'] = [get_plant_name(summation_df.loc[i, '機組'], summation_df.loc[i, '分類']) for i in summation_df.index]
+    df = df.groupby('唯一機組名')['Weighted_發電量'].sum().reset_index()
+    df['分類'] = [s.split('+')[0] for s in df['唯一機組名']]
+    df['機組'] = [s.split('+')[1] for s in df['唯一機組名']]
+    df['電廠'] = [get_plant_name(df.loc[i, '機組'], df.loc[i, '分類']) for i in df.index]
 
-    for i in summation_df.index:
-        if summation_df.loc[i, '電廠'] == '大林電廠':
-            summation_df.loc[i, '電廠'] += summation_df.loc[i, '分類']
+    for i in df.index:
+        if df.loc[i, '電廠'] == '大林電廠':
+            df.loc[i, '電廠'] += df.loc[i, '分類']
     
-    to_hierarchical_df = deepcopy(summation_df)
-    to_hierarchical_df = to_hierarchical_df[~(to_hierarchical_df['分類']=='儲能負載(Energy Storage Load)')]
+    df = df[~(df['分類']=='儲能負載(Energy Storage Load)')]
+    df = df.rename({'Weighted_發電量': '總發電量(GWhr)'}, axis=1).drop('唯一機組名', axis=1)
+    return df
 
-    tree_df = build_hierarchical_dataframe(to_hierarchical_df,
+
+def get_whole_day_tree_df(df=None, sql_db_fn=None, date=None):
+    if df is None:
+        df = get_whole_day_df(sql_db_fn, date)
+
+    tree_df = build_hierarchical_dataframe(df,
                                            levels=['機組', '電廠', '分類'],
-                                           value_column='Weighted_發電量',
+                                           value_column='總發電量(GWhr)',
                                            total_name='今日總發電量',
                                            color_map=color_map)
     tree_df['value'] /= 1000
     return tree_df
 
 
-def get_realtime_tree_df(sql_db_fn, date=None):
+def get_realtime_df(sql_db_fn, date=None):
     df = sql_df_preprocess(sql_db_fn, date)
 
-    realtime_df = deepcopy(df[df['時間']==max(df['時間'])])
-    realtime_df['電廠'] = [get_plant_name(realtime_df.loc[i, '機組'], realtime_df.loc[i, '分類']) for i in realtime_df.index]
-    for i in realtime_df.index:
-        if realtime_df.loc[i, '電廠'] == '大林電廠':
-            realtime_df.loc[i, '電廠'] += realtime_df.loc[i, '分類']
+    df = deepcopy(df[df['時間']==max(df['時間'])])
+    df['電廠'] = [get_plant_name(df.loc[i, '機組'], df.loc[i, '分類']) for i in df.index]
+    for i in df.index:
+        if df.loc[i, '電廠'] == '大林電廠':
+            df.loc[i, '電廠'] += df.loc[i, '分類']
     
-    non_neg_df = deepcopy(realtime_df)
-    non_neg_df = non_neg_df[non_neg_df['發電量']>=0].drop('時間', axis=1)
+    df = df[~(df['分類']=='儲能負載(Energy Storage Load)')]
+    df = df.rename({'發電量': '即時發電功率(MW)'}, axis=1).drop(['唯一機組名', '時間', 'Weighted_發電量', '容量', '權重'], axis=1).reset_index(drop=True)
+    return df
 
-    tree_df = build_hierarchical_dataframe(df=non_neg_df,
+
+def get_realtime_tree_df(df=None, sql_db_fn=None, date=None):
+    if df is None:
+        df = get_realtime_df(sql_db_fn, date)
+
+    tree_df = build_hierarchical_dataframe(df=df,
                                            levels=['機組', '電廠', '分類'],
-                                           value_column='發電量',
+                                           value_column='即時發電功率(MW)',
                                            total_name='即時總發電功率',
                                            color_map=color_map)
     return tree_df
 
 
 def save_tree_dfs(sql_db_fn, realtime_data_path, date=None):
-    whole_day_tree_df = get_whole_day_tree_df(sql_db_fn, date)
-    realtime_tree_df = get_realtime_tree_df(sql_db_fn, date)
+    whole_day_df = get_whole_day_df(sql_db_fn, date)
+    realtime_df = get_realtime_df(sql_db_fn, date)
+    whole_day_tree_df = get_whole_day_tree_df(whole_day_df)
+    realtime_tree_df = get_realtime_tree_df(realtime_df)
+
+    whole_day_df.to_csv(f'{realtime_data_path}whole_day_df.csv', index=False, encoding='utf-8-sig')
+    realtime_df.to_csv(f'{realtime_data_path}realtime_df.csv', index=False, encoding='utf-8-sig')
     whole_day_tree_df.to_csv(f'{realtime_data_path}whole_day_tree_df.csv', index=False, encoding='utf-8-sig')
     realtime_tree_df.to_csv(f'{realtime_data_path}realtime_tree_df.csv', index=False, encoding='utf-8-sig')
 
