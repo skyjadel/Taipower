@@ -1,13 +1,15 @@
+# 建立並儲存即時與當天的發電結構表格
+# 主要由外部呼叫的是 save_tree_dfs
+
 import datetime
-import numpy as np
 from copy import deepcopy
 import pandas as pd
 
 from data_integration.integrating_power_data import get_full_oneday_power_df
 
+# 定義 SQL 資料庫與 csv 儲存的路徑
 sql_db_fn = '../realtime/realtime_data/realtime.db'
 realtime_data_path = '../realtime/realtime_data/'
-
 
 color_map = {
     '核能(Nuclear)': [[217, 220, 254], [209, 212, 254], [198, 202, 253]],
@@ -26,8 +28,8 @@ color_map = {
     'N/A': [[232, 232, 232], [232, 232, 232], [232, 232, 232]]
 }
 
-
 def color_assign(first_level, depth, color_map=color_map):
+    # 按照每筆資料的發電種類以及層級分配顏色
     rgb = color_map[first_level][min(2, depth-1)]
     return 'rgb({}, {}, {})'.format(*rgb)
 

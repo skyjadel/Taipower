@@ -71,7 +71,6 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
 
     err = [np.abs(float(eval_df[f'{y_feature}_預測'].iloc[i]) - float(eval_df[y_feature].iloc[i])) * this_unit_factor for i in range(len(eval_df) - 1)]
     avg_err = [np.mean(err[max(0,i-moving_average_days+1):i+1]) for i in range(len(err))]
-    #avg_err = [float(eval_df[f'{y_feature}7日內平均誤差'].iloc[i]) * this_unit_factor for i in range(len(eval_df) - 1)]
 
     left, right = st.columns(2)
 
@@ -178,7 +177,6 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     df['日期'] = pd.to_datetime(df['日期'])
     df[f'{y_feature}'] = [float(v) * this_unit_factor for v in df[f'{y_feature}']]
     df[f'{y_feature}_預測'] = [float(v) * this_unit_factor for v in df[f'{y_feature}_預測']]
-    #df[f'{y_feature}7日內平均誤差'] = [float(v) * this_unit_factor for v in df[f'{y_feature}7日內平均誤差']]
     df[f'{y_feature}平均誤差'] = avg_err[-30::]
     df[f'{y_feature}誤差'] = np.abs(df[f'{y_feature}_預測'] - df[f'{y_feature}'])
 
@@ -242,7 +240,6 @@ def AI_assistant():
     st.text('過去七天當中，太陽能發電預測的誤差平均多少？')
     st.text('過去七天當中，哪一天的風力發電預測誤差最小，那天的預測值與實際值分別多少？')
     st.text('整個八月中旬，台電的尖峰負載平均有多少？')
-    #st.text('如果發現機器人給的資訊好像過時了，請重新整理頁面，讓機器人回去資料庫看看最新數據。')
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -261,8 +258,7 @@ def AI_assistant():
             response = st.write_stream(response_generator(prompt))
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-def tree_map():
-    
+def tree_map(): 
     left, right = st.columns(2)
 
     df_now = pd.read_csv(f'{realtime_data_path}realtime_tree_df.csv')
