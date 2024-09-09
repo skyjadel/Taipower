@@ -8,13 +8,13 @@ import datetime
 import time
 
 from chatbot import respond_generator as chatbot_response
-#from all_tree_df_generator import get_all_tree_df
 
 #----------Initialization-----------
 
 realtime_data_path = './realtime/realtime_data/'
 historical_data_path = './historical/data/prediction/'
 y_feature_list = ['尖峰負載', '風力', '太陽能']
+moving_average_days = 14
 
 now = datetime.datetime.now() 
 now += (datetime.timedelta(hours=8) - now.astimezone().tzinfo.utcoffset(None))
@@ -65,12 +65,13 @@ def value_string(val, unit):
         return f'{val:.2f} {unit}'
     return f'{val:.3f} {unit}'
 
-def one_tab(y_feature, second_row_first_col):
+def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_days):
     this_unit = units[y_feature]
     this_unit_factor = unit_factor[y_feature]
 
     err = [np.abs(float(eval_df[f'{y_feature}_預測'].iloc[i]) - float(eval_df[y_feature].iloc[i])) * this_unit_factor for i in range(len(eval_df) - 1)]
-    avg_err = [float(eval_df[f'{y_feature}7日內平均誤差'].iloc[i]) * this_unit_factor for i in range(len(eval_df) - 1)]
+    avg_err = [np.mean(err[max(0,i-moving_average_days+1):i+1]) for i in range(len(err))]
+    #avg_err = [float(eval_df[f'{y_feature}7日內平均誤差'].iloc[i]) * this_unit_factor for i in range(len(eval_df) - 1)]
 
     left, right = st.columns(2)
 
@@ -100,7 +101,6 @@ def one_tab(y_feature, second_row_first_col):
             label=f"昨日 ({yesterday_str}) 推定數據",
             value=value_string(peak_today[y_feature][0] * this_unit_factor, this_unit)
         )
-
 
     for i, j in enumerate(range(second_row_first_col, 4)):
         second_row[j].metric(
@@ -157,7 +157,7 @@ def one_tab(y_feature, second_row_first_col):
         this_val = avg_err[-i-1]
         last_val = avg_err[-i-2]
         forth_row[j].metric(
-            label=f"{eval_df['日期'].iloc[-i-2]}, 7日內平均誤差",
+            label=f"{eval_df['日期'].iloc[-i-2]}, {moving_average_days}日內平均誤差",
             value=value_string(this_val, this_unit),
             delta=value_string(this_val - last_val, this_unit),
             delta_color='inverse',
@@ -174,15 +174,16 @@ def one_tab(y_feature, second_row_first_col):
     df = deepcopy(eval_df[0:-1])
     if len(df) > 30:
         df = deepcopy(df[-30::])
+        avg_err = avg_err[-30::]
     df['日期'] = pd.to_datetime(df['日期'])
     df[f'{y_feature}'] = [float(v) * this_unit_factor for v in df[f'{y_feature}']]
     df[f'{y_feature}_預測'] = [float(v) * this_unit_factor for v in df[f'{y_feature}_預測']]
-    df[f'{y_feature}7日內平均誤差'] = [float(v) * this_unit_factor for v in df[f'{y_feature}7日內平均誤差']]
+    #df[f'{y_feature}7日內平均誤差'] = [float(v) * this_unit_factor for v in df[f'{y_feature}7日內平均誤差']]
+    df[f'{y_feature}平均誤差'] = avg_err[-30::]
     df[f'{y_feature}誤差'] = np.abs(df[f'{y_feature}_預測'] - df[f'{y_feature}'])
 
-    # 使用 Plotly Express 創建長條圖
-    line_fig = px.line(df, x='日期', y=f'{y_feature}7日內平均誤差', color_discrete_sequence=['gray'],
-                       labels={f'{y_feature}7日內平均誤差': '七日平均誤差'})
+    line_fig = px.line(df, x='日期', y=f'{y_feature}平均誤差', color_discrete_sequence=['gray'],
+                       labels={f'{y_feature}平均誤差': f'{moving_average_days}日平均誤差'})
 
     fig = go.Figure()
 
@@ -190,7 +191,7 @@ def one_tab(y_feature, second_row_first_col):
         fig.add_trace(trace)
 
     fig.update_layout(
-        title=f'七日平均誤差 ({this_unit})',
+        title=f'{moving_average_days}日平均誤差 ({this_unit})',
         xaxis_title='日期',
         yaxis_title=f'{y_feature}誤差',
     )
@@ -261,44 +262,58 @@ def AI_assistant():
         st.session_state.messages.append({"role": "assistant", "content": response})
 
 def tree_map():
-    df_all = pd.read_csv(f'{realtime_data_path}whole_day_tree_df.csv')
+    
+    left, right = st.columns(2)
+
     df_now = pd.read_csv(f'{realtime_data_path}realtime_tree_df.csv')
+    total = df_now[df_now['id']=='即時總發電功率'].iloc[0]['value']
+    df_now['百分比'] = [f'{df_now["value"].iloc[i]/total*100:.2f}%' for i in range(len(df_now))]
 
-    st.markdown('# 即時發電結構')
-
+    left.markdown('# 即時發電結構')
     fig1 = go.Figure()
     fig1.add_trace(go.Treemap(
          labels=df_now['id'],
          parents=df_now['parent'],
          values=df_now['value'],
+         customdata=df_now['百分比'],
          branchvalues='total',
          marker=dict(colors=df_now['color']),
-         hovertemplate='<b>%{label} </b> <br> 即時發電功率: %{value:.1f} MW<br>',
+         hovertemplate='<b>%{label} </b> <br> 即時發電功率: %{value:.1f} MW<br> 百分比: %{customdata}',
+         texttemplate="%{label}<br>%{value:.1f} MW<br>%{customdata}",
+         textposition='middle center',
+         textfont_size=16,
          name=''
          ))
     fig1.update_layout(
-        uniformtext=dict(minsize=14, mode='hide'),
-        margin = dict(t=50, l=25, r=25, b=25)
+        margin = dict(t=50, l=25, r=25, b=25),
+        height = 900
         )
-    st.plotly_chart(fig1)
+    left.plotly_chart(fig1)
 
-    st.markdown('# 今日總發電量結構')
+    df_all = pd.read_csv(f'{realtime_data_path}whole_day_tree_df.csv')
+    total = df_all[df_all['id']=='今日總發電量'].iloc[0]['value']
+    df_all['百分比'] = [f'{df_all["value"].iloc[i]/total*100:.2f}%' for i in range(len(df_all))]
 
+    right.markdown('# 今日總發電量結構')
     fig2 = go.Figure()
     fig2.add_trace(go.Treemap(
          labels=df_all['id'],
          parents=df_all['parent'],
          values=df_all['value'],
+         customdata=df_all['百分比'],
          branchvalues='total',
          marker=dict(colors=df_all['color']),
-         hovertemplate='<b>%{label} </b> <br> 今日總發電量: %{value:.2f} GWhr<br>',
+         hovertemplate='<b>%{label} </b> <br> 今日總發電量: %{value:.2f} GWhr<br>百分比: %{customdata}',
+         texttemplate="%{label}<br>%{value:.2f} GWhr<br>%{customdata}",
+         textposition='middle center',
+         textfont_size=16,
          name=''
          ))
     fig2.update_layout(
-        uniformtext=dict(minsize=14, mode='hide'),
-        margin = dict(t=50, l=25, r=25, b=25)
+        margin = dict(t=50, l=25, r=25, b=25),
+        height = 900
         )
-    st.plotly_chart(fig2)
+    right.plotly_chart(fig2)
 
 #------------Main------------
 
@@ -310,16 +325,16 @@ st.set_page_config(
 
 st.title('台電綠能尖峰發電預測')
 st.text('By Y. W. Liao')
-tabs = list(st.tabs(y_feature_list + ['發電結構圖', '聊天機器人']))
+tabs = list(st.tabs(y_feature_list + ['聊天機器人', '發電結構圖']))
 
 for i, tab in enumerate(tabs[0:-2]):
     with tab:
         one_tab(y_feature_list[i], second_row_first_col)
 
-with tabs[-2]:
+with tabs[-1]:
     tree_map()
 
-with tabs[-1]:
+with tabs[-2]:
     AI_assistant()
 
 
