@@ -16,7 +16,8 @@ realtime_data_path = './realtime/realtime_data/'
 historical_data_path = './historical/data/prediction/'
 y_feature_list = ['尖峰負載', '風力', '太陽能']
 
-now = datetime.datetime.now()
+now = datetime.datetime.now() 
+now += (datetime.timedelta(hours=8) - now.astimezone().tzinfo.utcoffset(None))
 
 first_hour_show_today_peak = 12
 
