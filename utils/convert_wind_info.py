@@ -8,6 +8,8 @@ def polar_to_cartesian_coord(df: DataFrame, input_col_names: List[str], output_c
         df (DataFrame): 要轉換的資料表，需包含風速與風向資料，風向資料需為 360 度表示法，正北為 0，正東為 90
         input_col_names (List[str]): 風速與風向的欄位名，順序為 [風速, 風向]
         output_col_names (List[str]): 東西風與南北風的欄位名，順序為 [東西風, 南北風]
+    Return:
+        df (DataFrame): 轉換後的資料表，會多出兩個欄位紀錄東西風速與南北風速
     '''
     wind_speed = list(df[input_col_names[0]])
     wind_direction = list(df[input_col_names[1]] / 180 * np.pi)

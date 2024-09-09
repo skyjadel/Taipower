@@ -1,3 +1,8 @@
+# 從整合過的歷史電力與氣象資料，提取模型訓練所需資料，並整理成 DataFrame 格式的模組
+# 重要函式：
+# prepare_data/prepare_observation_power_df: 產生氣象觀測與電力資料的整合資料表，一天一筆資料，訓練模型所需
+# prepare_forecast_observation_df: 產生氣象觀測與氣象預報資料的整合資料表，一天一氣象站一筆資料，訓練模型需要
+
 import pandas as pd
 import numpy as np
 import datetime
@@ -212,7 +217,16 @@ def add_date_related_information(df):
     return df
 
 
-def prepare_forecast_observation_df(historical_data_path, start_date=start_date, end_date=end_date):
+def prepare_forecast_observation_df(historical_data_path: str, start_date: str=start_date, end_date: str=end_date):
+    ''' Make combined DataFrame from historical weather forecast and observation data.
+    Arg:
+    historical_data_path(str): Historical data path.
+    start_date(str, optional): Start date of extracted data.
+    end_date(str, optional): End date of extracted data.
+
+    Return:
+    fore_obs_df: Combined DataFrame
+    '''
     start_date = convert_str_to_datetime(start_date)
     end_date = convert_str_to_datetime(end_date)
 
@@ -235,7 +249,16 @@ def prepare_forecast_observation_df(historical_data_path, start_date=start_date,
     return fore_obs_df
 
 
-def prepare_forecast_power_df(historical_data_path, start_date=start_date, end_date=end_date):
+def prepare_forecast_power_df(historical_data_path: str, start_date: str=start_date, end_date: str=end_date):
+    ''' Make combined DataFrame from historical weather forecast and power data.
+    Arg:
+    historical_data_path(str): Historical data path.
+    start_date(str, optional): Start date of extracted data.
+    end_date(str, optional): End date of extracted data.
+
+    Return:
+    fore_obs_df: Combined DataFrame
+    '''
     start_date = convert_str_to_datetime(start_date)
     end_date = convert_str_to_datetime(end_date)
 
@@ -257,7 +280,16 @@ def prepare_forecast_power_df(historical_data_path, start_date=start_date, end_d
     return forecast_power_df
 
 
-def prepare_observation_power_df(historical_data_path, start_date=start_date, end_date=end_date):
+def prepare_observation_power_df(historical_data_path: str, start_date: str=start_date, end_date: str=end_date):
+    ''' Make combined DataFrame from historical weather observation and power data.
+    Arg:
+    historical_data_path(str): Historical data path.
+    start_date(str, optional): Start date of extracted data.
+    end_date(str, optional): End date of extracted data.
+
+    Return:
+    fore_obs_df: Combined DataFrame
+    '''
     start_date = convert_str_to_datetime(start_date)
     end_date = convert_str_to_datetime(end_date)
     # 電力資料
@@ -280,19 +312,3 @@ def prepare_observation_power_df(historical_data_path, start_date=start_date, en
 def prepare_data(historical_data_path, start_date=start_date, end_date=end_date):
     weather_power_df = prepare_observation_power_df(historical_data_path=historical_data_path, start_date=start_date, end_date=end_date)
     return weather_power_df
-
-ref_cols = ['日期', '氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', 
-            '日期數字', '假日', '週六', '週日', '補班', '1~3月', '11~12月',
-            '風力', '太陽能', '尖峰負載', '白日長度', '夜尖峰']
-
-
-def prepare_model_input_df(historical_data_path, ref_cols=ref_cols):
-    weather_power_df = prepare_data(historical_data_path)
-    init_column_list = weather_power_df.columns
-    X_cols = []
-    for ref_c in ref_cols:
-        for c in init_column_list:
-            if c == ref_c or ref_c in c.split('_'):
-                X_cols.append(c)
-            init_column_list = list(set(init_column_list).difference(set(X_cols)))
-    return weather_power_df[X_cols]
