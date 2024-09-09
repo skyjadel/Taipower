@@ -4,6 +4,9 @@ from crawler import power_generation
 from crawler import weather_forecast
 from crawler import weather_observation
 from today_peak import get_power_generation_at_peak
+from utils.tree_dataframe import save_tree_dfs
+
+realtime_data_path = '/opt/airflow/sql_db/'
 
 sql_db_path = '/opt/airflow/sql_db/realtime.db'
 data_path = '/opt/airflow/sql_db/'
@@ -11,6 +14,7 @@ test_db_path = './test.db'
 
 def main_power(sql_db_path=sql_db_path, data_path=data_path):
     power_generation.get_data(sql_db_path)
+    save_tree_dfs(sql_db_path, realtime_data_path)
     peak_dict = get_power_generation_at_peak(sql_db_path)
     pd.DataFrame(peak_dict, index=[0]).to_csv(f'{data_path}peak.csv', index=False, encoding='utf-8-sig')
     

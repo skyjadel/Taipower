@@ -8,7 +8,7 @@ import datetime
 import time
 
 from chatbot import respond_generator as chatbot_response
-from all_tree_df_generator import get_all_tree_df
+#from all_tree_df_generator import get_all_tree_df
 
 #----------Initialization-----------
 
@@ -171,8 +171,8 @@ def one_tab(y_feature, second_row_first_col):
     right.markdown('#### 歷史預測表現')
 
     df = deepcopy(eval_df[0:-1])
-    if len(df) > 60:
-        df = deepcopy(df[-60::])
+    if len(df) > 30:
+        df = deepcopy(df[-30::])
     df['日期'] = pd.to_datetime(df['日期'])
     df[f'{y_feature}'] = [float(v) * this_unit_factor for v in df[f'{y_feature}']]
     df[f'{y_feature}_預測'] = [float(v) * this_unit_factor for v in df[f'{y_feature}_預測']]
@@ -245,7 +245,7 @@ def AI_assistant():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    for i, message in enumerate(st.session_state.messages):
+    for _, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
@@ -260,21 +260,44 @@ def AI_assistant():
         st.session_state.messages.append({"role": "assistant", "content": response})
 
 def tree_map():
-    all_tree_df = get_all_tree_df()
+    df_all = pd.read_csv(f'{realtime_data_path}whole_day_tree_df.csv')
+    df_now = pd.read_csv(f'{realtime_data_path}realtime_tree_df.csv')
 
-    fig = go.Figure()
-    fig.add_trace(go.Treemap(
-        labels=all_tree_df['id'],
-        parents=all_tree_df['parent'],
-        values=all_tree_df['value'],
-        branchvalues='total',
-        hovertemplate='<b>%{label} </b> <br> 即時發電功率: %{value:.1f} MW<br>',
-        root_color='lightgrey',
-        name=''
-        ))
-    fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
+    st.markdown('# 即時發電結構')
 
-    st.plotly_chart(fig)
+    fig1 = go.Figure()
+    fig1.add_trace(go.Treemap(
+         labels=df_now['id'],
+         parents=df_now['parent'],
+         values=df_now['value'],
+         branchvalues='total',
+         marker=dict(colors=df_now['color']),
+         hovertemplate='<b>%{label} </b> <br> 即時發電功率: %{value:.1f} MW<br>',
+         name=''
+         ))
+    fig1.update_layout(
+        uniformtext=dict(minsize=14, mode='hide'),
+        margin = dict(t=50, l=25, r=25, b=25)
+        )
+    st.plotly_chart(fig1)
+
+    st.markdown('# 今日總發電量結構')
+
+    fig2 = go.Figure()
+    fig2.add_trace(go.Treemap(
+         labels=df_all['id'],
+         parents=df_all['parent'],
+         values=df_all['value'],
+         branchvalues='total',
+         marker=dict(colors=df_all['color']),
+         hovertemplate='<b>%{label} </b> <br> 今日總發電量: %{value:.2f} GWhr<br>',
+         name=''
+         ))
+    fig2.update_layout(
+        uniformtext=dict(minsize=14, mode='hide'),
+        margin = dict(t=50, l=25, r=25, b=25)
+        )
+    st.plotly_chart(fig2)
 
 #------------Main------------
 
