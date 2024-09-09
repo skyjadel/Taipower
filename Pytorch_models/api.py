@@ -20,6 +20,11 @@ if torch.cuda.is_available():
 
 
 class Best_Parameter_Saver():
+    '''在 Pytorch 模型訓練過程中紀錄最佳模型參數，以訓練過程中的某個 metric 為判斷標準
+    Arg:
+        mode(str): 可以是'min', 'avg_min', 'max', 'avg_max'，設定以被評估 metric 的最小值、平均最小值、最大值或平均最大值為基準紀錄模型參數
+        mv_length(int, optional): 設定被評估 metric 的移動平均數的平均窗口為幾個 epoch ，預設為 10
+    '''
     def __init__(self, mode, mv_length=10):
         self.mode = mode
         if mode in ['min', 'avg_min']:
@@ -62,29 +67,41 @@ class Best_Parameter_Saver():
 
 
 class Model_API():
-    # 這個 class 的輸出入資料形式都是 numpy array，class 會自動將輸入資料轉換成 pytorch tensor
-    # =====================================================================================
-    # 有動用到的 module 與 class 如下
-    # import numpy as np
-    # from tqdm import tqdm
-    # import os
-    # import joblib
-    # import json
-    # import torch
-    # import torch.nn as nn
-    # from torch.utils.data import DataLoader, TensorDataset
-    # import torch.optim as optim
-    # from sklearn.preprocessing import StandardScaler
-    # SimpleNN
-    # Best_Parameter_Saver
-    # ======================================================================================
+    '''
+    這個 class 包裝 Pytorch 模型的訓練、推論與參數存取功能
+    輸出入資料形式都是 numpy array，class 會自動將輸入資料轉換成 pytorch tensor
+    =====================================================================================
+    有動用到的 module 與 class 如下
+    import numpy as np
+    from tqdm import tqdm
+    import os
+    import joblib
+    import json
+    import torch
+    import torch.nn as nn
+    from torch.utils.data import DataLoader, TensorDataset
+    import torch.optim as optim
+    from sklearn.preprocessing import StandardScaler
+    SimpleNN
+    Best_Parameter_Saver
+    ======================================================================================
+    '''
     
-    def __init__(self, model, L2_factor, linear_transform=True, classifer=False):
+    def __init__(self, model, L2_factor, linear_transform=True, classifier=False):
+        '''
+        Arg:
+            model (Pytorch model instance): 核心 Pytorch 模型
+            L2_factor (float): 訓練時的 L2 正則化參數
+            linear_transform (bool, optional): 是否在DL模型之後整合一個線性轉換模型，預設為 True
+            classifier (bool, optional): 是否為分類模型，若為 False 則為回歸模型，預設為 False
+        Return:
+            A Model_API instance
+        '''
         self.model = model
         self.L2_factor = L2_factor
         self.linear_transform = linear_transform
-        self.classifer = classifer
-        if classifer:
+        self.classifier = classifier
+        if classifier:
             if self.model.params['output_f'] == 1:
                 self.loss = nn.BCELoss()
             else:
@@ -95,19 +112,19 @@ class Model_API():
     
     def standard_scaler_fit(self, X, Y):
         self.scalerX = StandardScaler().fit(X)
-        if not self.classifer:
+        if not self.classifier:
             if len(Y.shape) == 1:
                 Y = Y.reshape(-1, 1)
             self.scalerY = StandardScaler().fit(Y)
 
         
     def data_preprocess(self, X, Y, batch_size, shuffle, standard_scale=True):
-        if not self.classifer:
+        if not self.classifier:
             if len(Y.shape) == 1:
                 Y = Y.reshape(-1, 1)
         if standard_scale:
             X = self.scalerX.transform(X)
-            if not self.classifer:
+            if not self.classifier:
                 Y = self.scalerY.transform(Y)
         X = torch.tensor(X, dtype=torch.float32)
         Y = torch.tensor(Y, dtype=torch.float32)
@@ -255,7 +272,7 @@ class Model_API():
             Y = self.scalerY.inverse_transform(Y)
         if self.linear_transform and linear_transform:
             Y = self.LinearModel.predict(Y.reshape(-1,1))
-        if self.classifer:
+        if self.classifier:
             Y[np.where(Y<0.5)] = 0
             Y[np.where(Y>=0.5)] = 1
         Y = np.squeeze(Y)

@@ -159,8 +159,8 @@ class Ensemble_Model():
         if mode == 'regressor':
             model = pytorch_models.SimpleNN(input_f, output_f, feature_counts, dropout_factor)
         elif mode == 'classifier':
-            model = pytorch_models.SimpleNN_classifer(input_f, output_f, feature_counts, dropout_factor)
-        Model_API = api.Model_API(model, L2_factor=L2_factor, classifer=(mode=='classifier'))
+            model = pytorch_models.SimpleNN_classifier(input_f, output_f, feature_counts, dropout_factor)
+        Model_API = api.Model_API(model, L2_factor=L2_factor, classifier=(mode=='classifier'))
         return Model_API
 
 

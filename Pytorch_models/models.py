@@ -51,11 +51,11 @@ class SimpleNN(nn.Module):
             output = self.relu(output)
         return output
     
-class SimpleNN_classifer(nn.Module):
+class SimpleNN_classifier(nn.Module):
     def __init__(self, input_f, output_f, feature_counts,
                   dropout_factor=0,
                   positive_define=False):
-        super(SimpleNN_classifer, self).__init__()
+        super(SimpleNN_classifier, self).__init__()
         self.params = {
             'input_f': input_f,
             'output_f': output_f,
