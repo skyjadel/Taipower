@@ -2,6 +2,14 @@ import torch.nn as nn
 import torch
 
 class SimpleNN(nn.Module):
+    '''全連接類神經網路，回歸版本
+    Args:
+        input_f(int): 輸入的特徵數量
+        output_f(int): 輸出的特徵數量
+        feature_counts(List[int]): 每個隱藏層的神經元數量
+        dropout_factor(float, optional): dropout layer 的參數， 0~1 之間
+        positive_define(bool, optional): 是否規定輸出值 >= 0
+    '''
     def __init__(self, input_f, output_f, feature_counts,
                   dropout_factor=0,
                   positive_define=False):
@@ -30,7 +38,7 @@ class SimpleNN(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
     
-    
+    # 全連接模組，包含全連接層，BatchNormalize層，以及選擇性的 activation 層與 dropout 層
     def fnn_block(self, in_f, out_f, dropout=True, activation=True):
         layers = []
         layers.append(nn.Linear(in_f, out_f))
@@ -40,7 +48,7 @@ class SimpleNN(nn.Module):
         if dropout:
             layers.append(nn.Dropout(p=self.dropout_factor))
         return nn.Sequential(*layers)
-    
+
     def forward(self, x):
         x = self.BN0(x)
         for block in self.blocks:
@@ -51,21 +59,26 @@ class SimpleNN(nn.Module):
             output = self.relu(output)
         return output
     
+
 class SimpleNN_classifier(nn.Module):
+    '''全連接類神經網路，分類版本
+    Args:
+        input_f(int): 輸入的特徵數量
+        output_f(int): 輸出的特徵數量
+        feature_counts(List[int]): 每個隱藏層的神經元數量
+        dropout_factor(float, optional): dropout layer 的參數， 0~1 之間
+    '''
     def __init__(self, input_f, output_f, feature_counts,
-                  dropout_factor=0,
-                  positive_define=False):
+                  dropout_factor=0):
         super(SimpleNN_classifier, self).__init__()
         self.params = {
             'input_f': input_f,
             'output_f': output_f,
             'feature_counts': feature_counts,
-            'dropout_factor': dropout_factor,
-            'positive_define': positive_define
+            'dropout_factor': dropout_factor
         }
         self.feature_counts = feature_counts
         self.dropout_factor = dropout_factor
-        self.positive_define = positive_define
         self.BN0 = nn.BatchNorm1d(input_f)
         self.blocks = nn.ModuleList()
         for i, f in enumerate(feature_counts):
@@ -80,7 +93,7 @@ class SimpleNN_classifier(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
     
-    
+    # 全連接模組，包含全連接層，BatchNormalize層，以及選擇性的 activation 層與 dropout 層
     def fnn_block(self, in_f, out_f, dropout=True, activation=True):
         layers = []
         layers.append(nn.Linear(in_f, out_f))
@@ -98,10 +111,17 @@ class SimpleNN_classifier(nn.Module):
         x = self.output_layer_A(x)
         x = self.output_layer_B(x)
         output = self.sigmoid(x)
-        
         return output
-    
+
 class LSTM_model(nn.Module):
+    '''LSTM 模型
+    Args:
+        input_size(int): 輸入資料特徵數
+        hidden_size(int): 隱藏層特徵數
+        num_layers(int): 隱藏層數量
+        output_size(int): 輸出特徵數
+        dropout(float): dropout參數
+    '''
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0):
         super(LSTM_model, self).__init__()
         self.params = {

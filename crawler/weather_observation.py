@@ -1,3 +1,6 @@
+# 從中央氣象署網站抓取即時氣象觀測資料
+# 呼叫 get_data() 完成
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -16,6 +19,7 @@ station_id_table = {
     '臺中電廠':'C0FA4'
 }
 
+
 def set_edge_driver():
 
     service = Service(executable_path=EdgeChromiumDriverManager().install())
@@ -29,11 +33,10 @@ def set_edge_driver():
     options.add_argument("--disable-notifications")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    
-    
+       
     driver = webdriver.Edge(service=service, options=options)
-
     return driver
+
 
 def set_chrome_driver():
 
@@ -48,13 +51,12 @@ def set_chrome_driver():
     options.add_argument("--disable-notifications")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    
-    
+       
     driver = webdriver.Chrome(service=service, options=options)
-
     return driver
 
 set_broswer_driver = set_chrome_driver
+
 
 def get_weather_observation(station_name):
     station_id = station_id_table[station_name]
@@ -143,6 +145,7 @@ def get_weather_observation(station_name):
             data['累積日照'].append(nan_float(row.find_all('td')[9].text))
             row_count += 1
     return pd.DataFrame(data)
+
 
 def get_data(sql_db_path):
     s = 0

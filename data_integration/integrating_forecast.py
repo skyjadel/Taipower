@@ -1,3 +1,6 @@
+# 這個模組的目的是將 SQL 資料庫中的預報資料整合到歷史預報資料 csv 檔中
+# 經由呼叫 main() 完成
+
 import sqlite3
 import pandas as pd
 import datetime
@@ -177,6 +180,7 @@ def arrange_forecast_for_towns(towns, sql_db_path, forecast_times, sample_hr=15)
 
 
 def main(sql_db_fn, historical_data_path):
+    # 將 SQL 資料庫中的預報資料整合到歷史預報資料 csv 檔中
     forecast_times = retrieve_update_times_from_sql(sql_db_fn)
     df = arrange_forecast_for_towns(town_list, sql_db_fn, forecast_times=forecast_times)
     df.to_csv(historical_data_path+'weather/finalized/weather_forecast.csv', encoding='utf-8-sig', index=False)

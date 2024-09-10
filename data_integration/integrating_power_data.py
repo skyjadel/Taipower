@@ -1,3 +1,6 @@
+# 這個模組的目的是將 SQL 資料庫中的電力資料整合到歷史預報資料 csv 檔中
+# 經由呼叫 main() 完成
+
 import sqlite3
 import pandas as pd
 import datetime
@@ -26,6 +29,7 @@ generator_translation_dict = {
 hydro_powers = ['德基', '青山', '谷關', '天輪', '馬鞍', '萬大', '鉅工', 
                 '立霧', '龍澗', '卓蘭', '水里']
 generator_translation_dict.update({k: [k] for k in hydro_powers})
+
 
 def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_type=True, return_sql_df=False):
     date_str = datetime.datetime.strftime(date, '%Y-%m-%d')
@@ -90,8 +94,8 @@ def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_ty
     pwd_gen_df['日期'] = date_str.replace('-', '/')
     pwd_gen_df.rename({'總負載': '尖峰負載'}, axis=1, inplace=True)
     pwd_gen_df['尖峰負載'] *= 10
-        
     return pwd_gen_df
+
 
 def get_oneday_power_data(sql_db_fn, date, solar_energy_day_only):
     pwd_gen_df = get_full_oneday_power_df(sql_db_fn, date, day_only=False)
@@ -105,6 +109,7 @@ def get_oneday_power_data(sql_db_fn, date, solar_energy_day_only):
             solar_df = solar_df[solar_df['尖峰負載'] == max(solar_df['尖峰負載'])]
             pwd_gen_df.loc[pwd_gen_df.index[0], '太陽能發電'] = solar_df['太陽能發電'].iloc[0]
     return pwd_gen_df
+
 
 def load_power_data(sql_db_fn, latest_date_in_historical_power_data, solar_energy_day_only):
     time_now = datetime.datetime.now()
@@ -125,7 +130,10 @@ def load_power_data(sql_db_fn, latest_date_in_historical_power_data, solar_energ
         new_data = None
     return new_data
 
-def main(sql_db_fn, historical_data_path, solar_energy_day_only):
+
+def main(sql_db_fn, historical_data_path, solar_energy_day_only=False):
+    # 這個函數的目的是將每天用電尖峰時刻的電力資料整合到歷史資料表中
+    # solar_energy_day_only 為真時，太陽能部分只取日間用電尖峰時的發電值
     historical_df = pd.read_csv(historical_data_path + 'power/power_generation_data.csv')
     historical_dates = pd.to_datetime(historical_df['日期'])
     latest_date_in_historical_power_data = max(historical_dates).to_pydatetime().date()
@@ -140,6 +148,7 @@ def main(sql_db_fn, historical_data_path, solar_energy_day_only):
         final_df = final_df.fillna(0)
 
     final_df.to_csv(historical_data_path + 'power/power_generation_data.csv', encoding='utf-8-sig', index=False)
+
 
 if __name__ == '__main__':
     print('Start!')

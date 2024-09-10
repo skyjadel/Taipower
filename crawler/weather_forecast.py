@@ -1,3 +1,6 @@
+# 從中央氣象署網站抓取即時氣象預報資料
+# 呼叫 get_data() 完成
+
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup as bs
@@ -13,18 +16,20 @@ town_id_table = {
     '臺中市龍井區': [66, 6602500],
 }
 
+
 def get_weather_forecast(town_name):
-    #取得ID
     county_id, town_id = town_id_table[town_name]
-    #抓取時間資料
+    
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
     headers = {"User-Agent": user_agent}
     req = requests.get(url=f'https://www.cwa.gov.tw/Data/js/3hr/ChartData_3hr_T_{county_id}.js', headers=headers)
     req.encoding = 'utf-8'
     js_str = req.text
+
     #取得預報發布時間
     forecast_time_str = js_str[js_str.index('Updated:')+9:js_str.index('Updated:')+28]
     forecast_time = datetime.datetime.strptime(forecast_time_str, '%Y/%m/%d %H:%M:%S')
+
     #取得預報目標時間
     first_forecast_hr_str = js_str[js_str.index("Time_3hr")+18:js_str.index("Time_3hr")+26]
     forecasted_hrs = [datetime.datetime.strptime(f"{forecast_time_str.split('/')[0]}/{first_forecast_hr_str.split(' ')[1]} {first_forecast_hr_str.split(' ')[0]}:00:00",

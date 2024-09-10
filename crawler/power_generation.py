@@ -1,3 +1,5 @@
+# 從台電網站抓取即時電力資料
+
 import json
 import requests
 from bs4 import BeautifulSoup as bs

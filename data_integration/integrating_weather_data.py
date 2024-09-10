@@ -1,3 +1,6 @@
+# 這個模組的目的是將 SQL 資料庫中的氣象觀測資料整合到歷史預報資料 csv 檔中
+# 經由呼叫 main() 完成
+
 import sqlite3
 import pandas as pd
 import datetime
@@ -18,6 +21,8 @@ site_location_dict = {
     '臺中電廠': {'lat':'24.214642' ,'lon':'120.490744', 'elevation':25},
 }
 
+
+# 從有效日照時間(小時)換算成全天空日照量(每平方公尺百萬焦耳)
 def sun_light_time_to_energy(hr):
     return hr * 2.5198 + 8.6888
 
@@ -37,6 +42,7 @@ wind_direction_dict = {'北':360,
                        '西南西':237.5,
                        '西北西':292.5,
                        '北北西':337.5}
+
 
 def get_avg_wind_direction(wind_speed_list, wind_direction_list):
     EW_wind = []
@@ -106,6 +112,7 @@ def get_rainfall_hr(data_list):
         return None
     return rainfall_hr * hr_rate
 
+
 def nanmean(L):
     if np.prod(np.array(L).shape) == 0:
         return None
@@ -173,7 +180,8 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn):
     
     return output_dict, sql_df
 
-def main(sql_db_fn, historical_data_path, time_zone='TWN'):
+
+def main(sql_db_fn, historical_data_path):
     historical_weather_df = pd.read_csv(historical_data_path + 'weather/finalized/big_table.csv')
 
     time_now = datetime.datetime.now()
@@ -194,6 +202,7 @@ def main(sql_db_fn, historical_data_path, time_zone='TWN'):
     new_df = pd.concat(new_data, axis=0, ignore_index=True).reset_index(drop=True)
 
     new_df.to_csv(historical_data_path + 'weather/finalized/big_table.csv', encoding='utf-8-sig', index=False)
+
 
 if __name__ == '__main__':
     print('Start!')

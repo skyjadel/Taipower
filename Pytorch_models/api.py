@@ -131,8 +131,8 @@ class Model_API():
         dataset = TensorDataset(X.to(device), Y.to(device))
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
         return data_loader
+ 
 
-    # 訓練模型
     def fit(self, X_train, Y_train, X_val=None, Y_val=None,
             standard_scale = True,
             loss_function = 'auto',
@@ -146,7 +146,25 @@ class Model_API():
             L2_factor=None,
             first_lr=1e-3,
             verbose=0):
+        '''訓練模型
+        Args:
+            X_train, Y_train (numpy array): 訓練集
+            X_val, Y_val (numpy array, optional): 測試集
+            standard_scale (bool, optional): 是否對 X 與 Y 進行 standard scaling，預設為 True
+            loss_function (optional): Pytorch loss function or 'auto', automatically select a loss function base on model mode if 'auto' is assigned.
+            metrics (dict, optional): 同時計算哪些 metrics，字典的 keys 為字串，做為 metric 的名字，values 則為計算 metric 的函數。預設為計算 MAE。
+            best_parametet_saver_mode (str, optional): 參照 class Best_Parameter_Saver 裡的 mode 參數，預設為 'avg_min'
+            best_parametet_saver_mv_length (int, optional): 參照 class Best_Parameter_Saver 裡的 mv_length 參數，預設為 10
+            scheduler_ref (str, optional): lr_scheduler 參考的參數，預設為 'Val_MAE'，代表依據 Validation set 的 MAE 來調整 lr。
+            scheduler_mode (str, optional): lr_scheduler 追求 ref 最大化 (max) 或最小化 (min)，預設為 'min'。
+            batch_size (int, optional): 訓練時的 batch_size, 預設為 16
+            n_epoch (int, optional): 最大訓練 epoch 數，預設為 1000
+            L2_factor (float, optional): L2 正則化參數，若為 None 則引用 instance 本身的 L2_factor
+            first_lr (float, optional): 起始 learning rate，預設為 1e-3
+            verbose (int, optional): 訓練時印出的資訊詳細程度，可為 0 (資訊少) 或 1 (資訊多)
+        '''
         
+        # 初始化
         if loss_function == 'auto':
             loss_function = self.loss
         
@@ -154,12 +172,14 @@ class Model_API():
             L2_factor = self.L2_factor
 
         self.best_parameter_saver = Best_Parameter_Saver(mode=best_parametet_saver_mode, mv_length=best_parametet_saver_mv_length)
+
         validation = True
         if X_val is None or Y_val is None:
             validation = False
         
         if standard_scale:
             self.standard_scaler_fit(X_train, Y_train)
+        
         train_loader = self.data_preprocess(X_train, Y_train, batch_size, shuffle=True, standard_scale=standard_scale)
         if validation:
             val_loader = self.data_preprocess(X_val, Y_val, batch_size, shuffle=False, standard_scale=standard_scale)
@@ -177,36 +197,44 @@ class Model_API():
                 self.history[f'Val_{key}'] = []
 
         previous_lr = first_lr
+        # 若有 GPU 則將 model 移到 GPU
         self.model.to(device)
 
+        # 訓練
         iterator = range(n_epoch)
         for epoch in iterator:
+            # Training Set
             self.model.train()
             total_loss, total_samples = 0, 0
             total_metrics = {k: 0 for k in metrics.keys()}
+            # Loop over batches
             for this_X, this_Y in train_loader:
                 this_batch_size = this_X.size(0)
                 this_Y = this_Y.squeeze()
                 if this_batch_size > 2:
+                    # Propogation and Weight adjustment
                     optimizer.zero_grad()
                     y_pred = self.model(this_X).squeeze()
                     loss_train = criterion(y_pred, this_Y)
                     loss_train.backward()
                     optimizer.step()
-                    #print(loss_train)
+                    # Record summation of loss and metrics, and number of samples
                     total_loss += loss_train * this_batch_size
                     for k, func in metrics.items():
                         total_metrics[k] += func(this_Y, y_pred) * this_batch_size
                     total_samples += this_batch_size
 
+            # Record loss and metrics for training set
             self.history['Train_loss'].append((total_loss / total_samples).item())
             for k in metrics.keys():
                 self.history[f'Train_{k}'].append((total_metrics[k] / total_samples).item())
 
+            # Validation Set
             if validation:
                 self.model.eval()
                 total_loss, total_samples = 0, 0
                 total_metrics = {k: 0 for k in metrics.keys()}
+                # Calculate and Record loss and metrics for validation set
                 for this_X, this_Y in val_loader:
                     this_Y = this_Y.squeeze()
                     with torch.no_grad():
@@ -223,6 +251,7 @@ class Model_API():
                 for k in metrics.keys():
                     self.history[f'Val_{k}'].append((total_metrics[k] / total_samples).item())
                 
+                # Adjust learning rate and save best weights if certain criterias have been satisfied
                 ref = self.history[scheduler_ref][-1]
                 scheduler.step(ref)
                 self.best_parameter_saver.update(self.model, ref)
@@ -230,12 +259,15 @@ class Model_API():
                 scheduler.step(ref)
                 self.best_parameter_saver.update(self.model, ref)
             
+            # Print out informations of this epoch
             if verbose==1:
                 info_string = f'Epoch: {epoch}, '
                 for key, value in self.history.items():
                     info_string += f'{key}: {value[-1]:.4f}, '
                 print(info_string)
-                
+            
+            # 檢查 lr 是否有改變，有改變的話印出提示訊息
+            # 若 lr < 1e-6 則結束訓練
             current_lr = optimizer.param_groups[0]['lr']
             if not current_lr == previous_lr:
                 if current_lr < 1e-6:
@@ -245,8 +277,11 @@ class Model_API():
                 if verbose == 1:
                     print(f"Learning rate changed from {previous_lr} to {current_lr}")
                 previous_lr = current_lr
-                
+
+        # 將訓練過程暫存的最佳參數讀回來 
         self.model = self.best_parameter_saver.load_params(self.model)
+
+        # 線性轉換
         if self.linear_transform:
             if hasattr(self, 'scalerX'):
                 test_X = torch.tensor(self.scalerX.transform(X_train), dtype=torch.float32)
@@ -278,7 +313,7 @@ class Model_API():
         Y = np.squeeze(Y)
         return Y
 
-    # 儲存模型參數
+    # 模型參數存檔
     def save_weight(self, file_path):
         if not os.path.exists(file_path):
             os.makedirs(file_path, exist_ok=True)
@@ -296,7 +331,7 @@ class Model_API():
         with open(file_path + 'hyper_parameters.json', 'w') as f:
             _ = json.dump(model_params_dict, f)
 
-    # 讀取模型參數
+    # 從檔案讀取模型參數
     def load_weight(self, file_path):
         self.model.load_state_dict(torch.load(file_path + 'FCN.pt', map_location=device))
         if os.path.exists(file_path + 'scalerX.model'):

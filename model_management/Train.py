@@ -9,13 +9,13 @@ MAE = Array_Metrics.mae
 R2_score = Array_Metrics.r2
 
 params_dict = {
-    'meta_path': '../trained_model_parameters/model_meta_2024-08-28/', 
-    'data_path': '../historical/data/', 
-    'test_size': 0.001,
-    'test_last_fold': False,
-    'apply_night_peak': False,
-    'start_date': '2023-08-01',
-    'end_date': '2200-12-31'
+    'meta_path': '../trained_model_parameters/model_meta_2024-08-28/', # 讀取 meta parameters 的路徑
+    'data_path': '../historical/data/', # 訓練用資料的路徑
+    'test_size': 0.001, # 測試集的比例
+    'test_last_fold': False, # 是否選取時間最晚近的資料做為測試集
+    'apply_night_peak': False, # 太陽能部分是否加入夜尖峰調整
+    'start_date': '2023-08-01', # 訓練資料開始日
+    'end_date': '2200-12-31' # 訓練資料結束日
 }
 train_model_main_path = '../trained_model_parameters/models_tobe_evaluated/'
 latest_model_path='../trained_model_parameters/latest_model/'
@@ -37,6 +37,7 @@ def save_model_metadata(file_path, model_xcols, model_hyperparameters_dict, opti
         json.dump(output_dict, f)
 
 
+# 為單一一種被預測值訓練模型
 def train_one_model(Y_feature, model_path, meta_path, data_path, start_date='2023-08-01', end_date='2200-12-31',
                     test_size=0.2, test_last_fold=True, apply_night_peak=False, remove_night_peak_samples=True,
                     latest_model_path=latest_model_path):
@@ -52,7 +53,6 @@ def train_one_model(Y_feature, model_path, meta_path, data_path, start_date='202
     for model_label in weights.keys():
         weights[model_label] /= normalization_factor
 
-    
     if Y_feature == '太陽能' and apply_night_peak:
         with open(f'{meta_path}夜尖峰/meta.json', 'r') as f:
             NP_meta = json.load(f)
@@ -93,6 +93,8 @@ def train_one_model(Y_feature, model_path, meta_path, data_path, start_date='202
         MODEL.save_model(f'{latest_model_path}{Y_feature}/')
         save_model_metadata(f'{latest_model_path}{Y_feature}/meta.json', X_feature_dict, hyperparameters_dict, weights)
 
+
+# 訓練一組能夠預測多個特徵的模型
 def train_all_models(model_path, meta_path, data_path, test_size=0.001, test_last_fold=False,
                      apply_night_peak=False, remove_night_peak_samples=True, latest_model_path=latest_model_path,
                      start_date='2023-08-01', end_date='2200-12-31'):
@@ -103,9 +105,19 @@ def train_all_models(model_path, meta_path, data_path, test_size=0.001, test_las
                         apply_night_peak=apply_night_peak, remove_night_peak_samples=remove_night_peak_samples, latest_model_path=latest_model_path,
                         start_date=start_date, end_date=end_date)
 
+
 def main_train(params=params_dict, preserved_days=0, train_model_main_path=train_model_main_path,
                apply_night_peak=False, remove_night_peak_samples=True,
                latest_model_path=None):
+    '''整合輸入參數，並訓練一組能夠預測多個特徵的模型
+    Args:
+        params(dict, optional): 部份訓練參數，格式參看模組開頭的預設值
+        preserved_days(int, optional): 保留幾天的最新資料不參與訓練，通常是為了事後驗證模型的表現
+        train_model_main_path(str, optional): 模型儲存位置
+        apply_night_peak(bool, optional): 太陽能部分是否加入夜尖峰調整
+        remove_night_peak_samples(bool, optional): 太陽能訓練集是否排除夜尖峰樣本
+        latest_model_path(str or None, optional): 若不是 None 則自動儲存一份模型參數到指定位置
+    '''
     today = datetime.datetime.now().date()
     end_date = today - datetime.timedelta(days=preserved_days+1)
     end_date = datetime.datetime.strftime(end_date, '%Y-%m-%d')
