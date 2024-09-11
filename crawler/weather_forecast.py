@@ -121,21 +121,31 @@ def get_data(sql_db_path):
     cursor.execute(sql_command)
     conn.commit()
 
+    earliest_update_time = min(forecast_df['預測發布時間'])
+    earliest_update_time_str = datetime.datetime.strftime(earliest_update_time, '%Y/%m/%d %H:%M:%S')
+
+    cursor.execute(f"SELECT town, update_time, forecast_time FROM forecast WHERE update_time >= '{earliest_update_time_str}'")
+    existing_data = cursor.fetchall()
+
     for i in range(len(forecast_df)):
         this_list = list(forecast_df.loc[i])
-        sql_command = (
-            'INSERT INTO forecast VALUES('
-            f"'{this_list[0]}', "
-            f"'{datetime.datetime.strftime(this_list[1], '%Y/%m/%d %H:%M:%S')}', "
-            f"'{datetime.datetime.strftime(this_list[2], '%Y/%m/%d %H:%M:%S')}', "
-            f"'{this_list[3]}', "
-            f"{this_list[4]}, "
-            f"{this_list[5]}, "
-            f"{this_list[6]}, "
-            f"{this_list[7]}, "
-            f"'{this_list[8]}'"
-            ');'
-        )
+        this_town = this_list[0]
+        update_time_str = datetime.datetime.strftime(this_list[1], '%Y/%m/%d %H:%M:%S')
+        forecast_time_str = datetime.datetime.strftime(this_list[2], '%Y/%m/%d %H:%M:%S')
+        if not (this_town, update_time_str, forecast_time_str) in existing_data:
+            sql_command = (
+                'INSERT INTO forecast VALUES('
+                f"'{this_town}', "
+                f"'{update_time_str}', "
+                f"'{forecast_time_str}', "
+                f"'{this_list[3]}', "
+                f"{this_list[4]}, "
+                f"{this_list[5]}, "
+                f"{this_list[6]}, "
+                f"{this_list[7]}, "
+                f"'{this_list[8]}'"
+                ');'
+            )
         conn.execute(sql_command)
     conn.commit()
     cursor.close()
