@@ -179,6 +179,36 @@ def get_realtime_tree_df(df=None, sql_db_fn=None, date=None):
                                            color_map=color_map)
     return tree_df
 
+def get_alltime_today_df(sql_db_fn, date=None):
+    all_df = sql_df_preprocess(sql_db_fn, date)
+
+    time_list = list(set(all_df['時間']))
+    time_list.sort()
+
+    all_time_dict = {}
+    for t in time_list:
+        time_str = datetime.datetime.strftime(t, '%H:%M')
+
+        df = deepcopy(all_df[all_df['時間']==t])
+        df['電廠'] = [get_plant_name(df.loc[i, '機組'], df.loc[i, '分類']) for i in df.index]
+        for i in df.index:
+            if df.loc[i, '電廠'] == '大林電廠':
+                df.loc[i, '電廠'] += df.loc[i, '分類']
+        
+        df = df[~(df['分類']=='儲能負載(Energy Storage Load)')]
+        df = df.rename({'發電量': '即時發電功率(MW)'}, axis=1).drop(['唯一機組名', '時間', 'Weighted_發電量', '容量', '權重'], axis=1).reset_index(drop=True)
+        all_time_dict[time_str] = df
+    return all_time_dict
+
+def get_alltime_today_tree_df(sql_db_fn, date=None):
+    all_time_dict = get_alltime_today_df(sql_db_fn, date)
+    
+    all_tree_dict = {}
+    for time_str, this_df in all_time_dict.items():
+        all_tree_dict[time_str] = get_realtime_tree_df(this_df)
+    
+    return all_tree_dict
+
 
 def save_tree_dfs(sql_db_fn, realtime_data_path, date=None):
     whole_day_df = get_whole_day_df(sql_db_fn, date)

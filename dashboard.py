@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from copy import deepcopy
 import datetime
 import time
+import os
 
 from chatbot import respond_generator as chatbot_response
 
@@ -13,6 +14,8 @@ from chatbot import respond_generator as chatbot_response
 
 realtime_data_path = './realtime/realtime_data/'
 historical_data_path = './historical/data/prediction/'
+historical_power_structure_path = './historical/data/power/power_structure/'
+realtime_power_structure_path = f'{historical_power_structure_path}today/'
 y_feature_list = ['尖峰負載', '風力', '太陽能']
 moving_average_days = 14
 
@@ -89,13 +92,13 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     second_row = list(left.columns(4))
 
     if now.hour >= first_hour_show_today_peak:
-        today_str = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+        today_str = datetime.datetime.strftime(now, '%Y-%m-%d')
         second_row[second_row_first_col-1].metric(
             label=f"今日 ({today_str}) 推定數據",
             value=value_string(peak_today[y_feature][0] * this_unit_factor, this_unit)
         )
     elif (now.hour == 0 and now.minute <= 40) and second_row_first_col==2:
-        yesterday_str = datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(days=1), '%Y-%m-%d')
+        yesterday_str = datetime.datetime.strftime(now - datetime.timedelta(days=1), '%Y-%m-%d')
         second_row[second_row_first_col-1].metric(
             label=f"昨日 ({yesterday_str}) 推定數據",
             value=value_string(peak_today[y_feature][0] * this_unit_factor, this_unit)
@@ -224,7 +227,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
 
 def AI_assistant():
     def prompt_generator(input_message):
-        return f'背景知識：今天是{datetime.datetime.now().date()}, 對話內容：{input_message}'
+        return f'背景知識：今天是{now.date()}, 對話內容：{input_message}'
     # Streamed response emulator
     def response_generator(input_message):
         prompt = prompt_generator(input_message)
@@ -261,11 +264,33 @@ def AI_assistant():
 def tree_map(): 
     left, right = st.columns(2)
 
-    df_now = pd.read_csv(f'{realtime_data_path}realtime_tree_df.csv')
+    left.markdown('# 即時供電結構')
+
+    time_filename_dict = {datetime.datetime.strptime(s.split('.')[0], '%Y-%m-%d_%H-%M') + datetime.timedelta(minutes=10): s for s in os.listdir(f'{realtime_power_structure_path}')}
+    time_str_dict = {datetime.datetime.strftime(t, '%H:%M'):t for t in time_filename_dict.keys()}
+    time_option_list = list(time_str_dict.keys())
+
+    for s in time_option_list:
+        if not s[-2::] in ['00', '30']:
+            time_option_list.remove(s)
+        if s == '00:00':
+            time_option_list.remove('00:00')
+            time_option_list.append('24:00')
+
+    time_option_list.sort()
+
+    time_str = left.selectbox(
+        label='請選擇時間',
+        options=time_option_list,
+        index=len(time_option_list)-1,
+        )
+    
+    df_filename = f'{realtime_power_structure_path}{time_filename_dict[time_str_dict[time_str]]}'
+    df_now = pd.read_csv(df_filename)
+
     total = df_now[df_now['id']=='即時總發電功率'].iloc[0]['value']
     df_now['百分比'] = [f'{df_now["value"].iloc[i]/total*100:.2f}%' for i in range(len(df_now))]
 
-    left.markdown('# 即時發電結構')
     fig1 = go.Figure()
     fig1.add_trace(go.Treemap(
          labels=df_now['id'],
@@ -274,7 +299,7 @@ def tree_map():
          customdata=df_now['百分比'],
          branchvalues='total',
          marker=dict(colors=df_now['color']),
-         hovertemplate='<b>%{label} </b> <br> 即時發電功率: %{value:.1f} MW<br> 百分比: %{customdata}',
+         hovertemplate='<b>%{label} </b> <br> 即時供電功率: %{value:.1f} MW<br> 百分比: %{customdata}',
          texttemplate="%{label}<br>%{value:.1f} MW<br>%{customdata}",
          textposition='middle center',
          textfont_size=16,
@@ -286,11 +311,20 @@ def tree_map():
         )
     left.plotly_chart(fig1)
 
-    df_all = pd.read_csv(f'{realtime_data_path}whole_day_tree_df.csv')
+    right.markdown('# 全日供電結構')
+
+    if now.hour == 0 and now.minute < 35:
+        yesterday = now - datetime.timedelta(days=1)
+        input_date = right.date_input(label='請輸入日期', value=yesterday, min_value=datetime.date(2024,8,1), max_value=yesterday)
+    else:
+        today = now
+        input_date = right.date_input(label='請輸入日期', value=today, min_value=datetime.date(2024,8,1), max_value=today)
+    date_str = datetime.datetime.strftime(input_date, '%Y-%m-%d')
+
+    df_all = pd.read_csv(f'{historical_power_structure_path}{date_str}.csv')
     total = df_all[df_all['id']=='今日總發電量'].iloc[0]['value']
     df_all['百分比'] = [f'{df_all["value"].iloc[i]/total*100:.2f}%' for i in range(len(df_all))]
 
-    right.markdown('# 今日總發電量結構')
     fig2 = go.Figure()
     fig2.add_trace(go.Treemap(
          labels=df_all['id'],
@@ -299,8 +333,8 @@ def tree_map():
          customdata=df_all['百分比'],
          branchvalues='total',
          marker=dict(colors=df_all['color']),
-         hovertemplate='<b>%{label} </b> <br> 今日總發電量: %{value:.2f} GWhr<br>百分比: %{customdata}',
-         texttemplate="%{label}<br>%{value:.2f} GWhr<br>%{customdata}",
+         hovertemplate='<b>%{label} </b> <br> 今日總供電量: %{value:.2f} GWh<br>百分比: %{customdata}',
+         texttemplate="%{label}<br>%{value:.2f} GWh<br>%{customdata}",
          textposition='middle center',
          textfont_size=16,
          name=''
