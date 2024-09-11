@@ -7,6 +7,8 @@ import datetime
 strptime = datetime.datetime.strptime
 strftime = datetime.datetime.strftime
 
+lastest_forecast_sample_hr = 19 # 整合每天預報數據時，最晚取到這個時間發布的預報
+
 test_sql_fn = './../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
 
@@ -157,7 +159,7 @@ def encode_oneday_forecast_data(forecast_df):
                     new_dict[this_key] = this_row[col].iloc[0]
     return pd.DataFrame([new_dict])
 
-def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, sample_hr=15):
+def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, sample_hr=lastest_forecast_sample_hr):
     init_df = retrieve_forecast_from_sql(town, sql_db_path=sql_db_path)
     ran_dates = []
     df_list = []
@@ -172,7 +174,7 @@ def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, sample_hr
 
     return pd.concat(df_list, axis=0, ignore_index=True).sort_values('日期').reset_index(drop=True)
 
-def arrange_forecast_for_towns(towns, sql_db_path, forecast_times, sample_hr=15):
+def arrange_forecast_for_towns(towns, sql_db_path, forecast_times, sample_hr=lastest_forecast_sample_hr):
     df_list = []
     for town in towns:
         df_list.append(arrange_forecast_for_given_town(town, sql_db_path, sample_hr=sample_hr, forecast_times=forecast_times))
