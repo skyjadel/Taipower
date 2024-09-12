@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+import datetime
 from datetime import timedelta
 from StartDate import startdate
 import sys
@@ -10,7 +11,9 @@ data_path = '/opt/airflow/historical_data/'
 model_path = '/opt/airflow/model/'
 
 def run():
-    _ = predict(data_path, model_path)
+    now = datetime.datetime.now()
+    if now.time() > datetime.time(19, 10, 0, 0):
+        _ = predict(data_path, model_path)
 
 default_args = {
     'owner': 'airflow',
