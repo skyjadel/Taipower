@@ -15,6 +15,8 @@ from utils.convert_wind_info import polar_to_cartesian_coord
 import utils.power_generation_types as power_types #各發電機組屬於哪種發電方式的定義檔
 from utils.holidays import *
 
+station_names = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠', '通霄漁港']
+
 # 日期數字化的第 0 天
 FIRST_DATE_STR = '2023-01-01'
 
@@ -110,7 +112,6 @@ def convert_weather_obseravtion_data(input_weather_df, start_date=start_date, en
     input_weather_df['日期'] = pd.to_datetime(input_weather_df['日期'])
     input_weather_df = designate_date_range(input_weather_df, '日期', start_date, end_date)
 
-    station_names = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠']
     col_map = {col: col.split('(')[0] for col in input_weather_df.columns}
 
     big_weather_df = deepcopy(input_weather_df)

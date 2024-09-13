@@ -73,7 +73,7 @@ class Ensemble_Model():
                  remove_night_peak_samples=True,
                  is_NP_model=False):
 
-        self.station_list = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠']
+        self.station_list = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠', '通霄漁港']
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
         self.forecast_features = ['晴', '多雲', '陰', '短暫陣雨', '短暫陣雨或雷雨', '午後短暫雷陣雨', '陣雨或雷雨',
                                   '溫度', '降水機率', '相對溼度', '風速', '東西風', '南北風']
