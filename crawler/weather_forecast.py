@@ -7,14 +7,7 @@ from bs4 import BeautifulSoup as bs
 import sqlite3
 import datetime
 
-town_id_table = {
-    '臺北市中正區': [63, 6300500],
-    '嘉義市西區': [10020, 1002002],
-    '高雄市楠梓區': [64, 6400400],
-    '澎湖縣望安鄉': [10016, 1001605],
-    '雲林縣臺西鄉': [10009, 1000916],
-    '臺中市龍井區': [66, 6602500],
-}
+from utils.station_info import town_id_table
 
 
 def get_weather_forecast(town_name):
@@ -51,16 +44,16 @@ def get_weather_forecast(town_name):
     soup = bs(data_str, 'html.parser')
 
     data = {
-    '鄉鎮市區': [town_name] * len(forecasted_hrs),
-    '預測發布時間': [forecast_time] * len(forecasted_hrs),
-    '預測時間': forecasted_hrs,
-    '天氣狀況': [],
-    '溫度': [],
-    '降雨機率': [],
-    '相對濕度': [],
-    '風速': [],
-    '風向': []
-}
+        '鄉鎮市區': [town_name] * len(forecasted_hrs),
+        '預測發布時間': [forecast_time] * len(forecasted_hrs),
+        '預測時間': forecasted_hrs,
+        '天氣狀況': [],
+        '溫度': [],
+        '降雨機率': [],
+        '相對濕度': [],
+        '風速': [],
+        '風向': []
+    }
     #組織預報資料
     table_rows = soup.find_all('tr')
 

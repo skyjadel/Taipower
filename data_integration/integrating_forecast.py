@@ -4,6 +4,9 @@
 import sqlite3
 import pandas as pd
 import datetime
+
+from utils.station_info import town_and_station
+
 strptime = datetime.datetime.strptime
 strftime = datetime.datetime.strftime
 
@@ -12,14 +15,7 @@ lastest_forecast_sample_hr = 19 # 整合每天預報數據時，最晚取到這�
 test_sql_fn = './../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
 
-station_and_town = {
-    '臺北': '臺北市中正區',
-    '高雄': '高雄市楠梓區',
-    '嘉義': '嘉義市西區',
-    '東吉島': '澎湖縣望安鄉',
-    '臺中電廠': '臺中市龍井區',
-    '臺西': '雲林縣臺西鄉'
-}
+station_and_town = {v: k for k, v in town_and_station.items()}
 
 wind_direction_dict = {'偏北風':360,
                        '偏南風':180,
@@ -121,7 +117,10 @@ def sample_forecast_at_given_time(forecast_df, sample_time):
     
     update_times = list(set(forecast_df['預測時間']))
     update_times.sort()
-    newest_time = update_times[-1]
+    if len(update_times) > 0:
+        newest_time = update_times[-1]
+    else:
+        return None
 
     forecast_df = forecast_df[forecast_df['預測時間'] == newest_time]
     return forecast_df
@@ -166,18 +165,23 @@ def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, sample_hr
     for d, ts in forecast_times.items():
         if (not d in ran_dates) and sample_hr > ts[0]:
             this_df = sample_forecast_at_given_time(init_df, f'{d} {sample_hr}:00:00')
+            if this_df is None:
+                continue
             this_df = sample_forecast_with_given_deltaday(this_df)
             this_df = encode_oneday_forecast_data(this_df)
 
             ran_dates.append(d)
             df_list.append(this_df)
-
+    if len(df_list) == 0:
+        return None
     return pd.concat(df_list, axis=0, ignore_index=True).sort_values('日期').reset_index(drop=True)
 
 def arrange_forecast_for_towns(towns, sql_db_path, forecast_times, sample_hr=lastest_forecast_sample_hr):
     df_list = []
     for town in towns:
-        df_list.append(arrange_forecast_for_given_town(town, sql_db_path, sample_hr=sample_hr, forecast_times=forecast_times))
+        this_df = arrange_forecast_for_given_town(town, sql_db_path, sample_hr=sample_hr, forecast_times=forecast_times)
+        if not this_df is None:
+            df_list.append(this_df)
     return pd.concat(df_list, axis=0, ignore_index=True).reset_index(drop=True)
 
 
@@ -185,7 +189,8 @@ def main(sql_db_fn, historical_data_path):
     # 將 SQL 資料庫中的預報資料整合到歷史預報資料 csv 檔中
     forecast_times = retrieve_update_times_from_sql(sql_db_fn)
     df = arrange_forecast_for_towns(town_list, sql_db_fn, forecast_times=forecast_times)
-    df.to_csv(historical_data_path+'weather/finalized/weather_forecast.csv', encoding='utf-8-sig', index=False)
+    if not df is None:
+        df.to_csv(historical_data_path+'weather/finalized/weather_forecast.csv', encoding='utf-8-sig', index=False)
 
 
 if __name__ == '__main__':

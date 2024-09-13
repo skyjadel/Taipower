@@ -7,20 +7,10 @@ import datetime
 import numpy as np
 
 from utils.sun_light import calculate_daytime, calculate_all_day_sunlight
+from utils.station_info import site_location_dict
 
 test_sql_fn = '../../realtime/realtime_data/realtime.db'
 test_hd_path = '../../historical copy/data/'
-
-# 各站經緯度與海拔
-site_location_dict = {
-    '臺北': {'lat':'25.037658' ,'lon':'121.514853', 'elevation':6.26},
-    '高雄': {'lat':'22.73043151' ,'lon':'120.3125156', 'elevation':11.79},
-    '嘉義': {'lat':'23.495925' ,'lon':'120.4329056', 'elevation':26.9},
-    '東吉島': {'lat':'23.25695' ,'lon':'119.6674667', 'elevation':44.5},
-    '臺西': {'lat':'23.701544' ,'lon':'120.197547', 'elevation':12},
-    '臺中電廠': {'lat':'24.214642' ,'lon':'120.490744', 'elevation':25},
-}
-
 
 # 從有效日照時間(小時)換算成全天空日照量(每平方公尺百萬焦耳)
 def sun_light_time_to_energy(hr):

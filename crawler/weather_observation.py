@@ -10,15 +10,7 @@ import datetime
 import pandas as pd
 import sqlite3
 
-station_id_table = {
-    '臺北':'46692',
-    '嘉義':'46748',
-    '高雄':'46744',
-    '東吉島':'46730',
-    '臺西':'C0K53',
-    '臺中電廠':'C0FA4'
-}
-
+from utils.station_info import station_id_table
 
 def set_edge_driver():
 
@@ -205,3 +197,6 @@ def get_data(sql_db_path):
     conn.commit()
     cursor.close()
     conn.close()
+
+if __name__ == '__main__':
+    get_data(sql_db_path='../realtime/realtime_data/realtime.db')
