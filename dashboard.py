@@ -261,7 +261,12 @@ def AI_assistant():
             response = st.write_stream(response_generator(prompt))
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-def tree_map(): 
+def tree_map():
+    max_depth_dict = {
+        '發電方式分類': 2,
+        '電廠': 3,
+        '機組': 4
+    }
     left, right = st.columns(2)
 
     left.markdown('# 即時供電結構')
@@ -279,10 +284,19 @@ def tree_map():
 
     time_option_list.sort()
 
-    time_str = left.selectbox(
+    left_a, left_b = left.columns(2)
+
+    time_str = left_a.selectbox(
         label='請選擇時間',
         options=time_option_list,
         index=len(time_option_list)-1,
+        )
+    
+    max_depth_label_l = left_b.selectbox(
+        label='請選擇最小單位',
+        options=['發電方式分類', '電廠', '機組'],
+        index=2,
+        key='deepest_l',
         )
     
     df_filename = f'{realtime_power_structure_path}{time_filename_dict[time_str_dict[time_str]]}'
@@ -303,6 +317,7 @@ def tree_map():
          texttemplate="%{label}<br>%{value:.1f} MW<br>%{customdata}",
          textposition='middle center',
          textfont_size=16,
+         maxdepth=max_depth_dict[max_depth_label_l],
          name=''
          ))
     fig1.update_layout(
@@ -313,13 +328,22 @@ def tree_map():
 
     right.markdown('# 全日供電結構')
 
+    right_a, right_b = right.columns(2)
+
     if now.hour == 0 and now.minute < 35:
         yesterday = now - datetime.timedelta(days=1)
-        input_date = right.date_input(label='請輸入日期', value=yesterday, min_value=datetime.date(2024,8,1), max_value=yesterday)
+        input_date = right_a.date_input(label='請輸入日期', value=yesterday, min_value=datetime.date(2024,8,1), max_value=yesterday)
     else:
         today = now
-        input_date = right.date_input(label='請輸入日期', value=today, min_value=datetime.date(2024,8,1), max_value=today)
+        input_date = right_a.date_input(label='請輸入日期', value=today, min_value=datetime.date(2024,8,1), max_value=today)
     date_str = datetime.datetime.strftime(input_date, '%Y-%m-%d')
+
+    max_depth_label_r = right_b.selectbox(
+        label='請選擇最小單位',
+        options=['發電方式分類', '電廠', '機組'],
+        index=2,
+        key='deepest_r',
+        )
 
     df_all = pd.read_csv(f'{historical_power_structure_path}{date_str}.csv')
     total = df_all[df_all['id']=='今日總發電量'].iloc[0]['value']
@@ -337,6 +361,7 @@ def tree_map():
          texttemplate="%{label}<br>%{value:.2f} GWh<br>%{customdata}",
          textposition='middle center',
          textfont_size=16,
+         maxdepth=max_depth_dict[max_depth_label_r],
          name=''
          ))
     fig2.update_layout(
