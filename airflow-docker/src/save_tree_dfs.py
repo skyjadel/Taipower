@@ -16,7 +16,11 @@ def save_tree_dfs(sql_db_fn=sql_db_fn, historical_power_structure_path=historica
     start_date = datetime.date(2024, 8, 1)
     end_date = datetime.date(2200, 12, 31)
 
-    today = datetime.datetime.now().date()
+    now = datetime.datetime.now()
+    today = now.date()
+    if now.hour == 0 and now.minute <= 25:
+        today -=  datetime.timedelta(days=1)
+
     end_date = min(end_date, today)
     date_range = int((end_date - start_date) / datetime.timedelta(days=1)) + 1
     date_list = [start_date + datetime.timedelta(days=i) for i in range(date_range)]
