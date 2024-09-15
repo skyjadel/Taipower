@@ -11,6 +11,7 @@ from data_integration.integrating_power_data import get_full_oneday_power_df
 sql_db_fn = '../realtime/realtime_data/realtime.db'
 realtime_data_path = '../realtime/realtime_data/'
 
+# 定義每種分類每個層級的顏色
 color_map = {
     '核能(Nuclear)': [[217, 220, 254], [209, 212, 254], [198, 202, 253]],
     '汽電共生(Co-Gen)': [[254, 221, 140], [254, 213, 115], [254, 203, 82]],
@@ -28,12 +29,14 @@ color_map = {
     'N/A': [[232, 232, 232], [232, 232, 232], [232, 232, 232]]
 }
 
+
+# 按照每筆資料的發電種類以及層級分配顏色
 def color_assign(first_level, depth, color_map=color_map):
-    # 按照每筆資料的發電種類以及層級分配顏色
     rgb = color_map[first_level][min(2, depth-1)]
     return 'rgb({}, {}, {})'.format(*rgb)
 
 
+# 從原始的機組名產生電廠名
 def get_plant_name(generator_name, power_type):
     generator_name = generator_name.replace('amp;', '')
     generator_name = generator_name.replace('amp', '')
@@ -87,6 +90,7 @@ def build_hierarchical_dataframe(df, levels, value_column, total_name='total', c
     return df_all_trees
 
 
+# 從 SQL Database 讀取需要的資料，並整理成 DataFrame
 def sql_df_preprocess(sql_db_fn, date=None):
     day_completed = False
     now = datetime.datetime.now()
@@ -124,6 +128,7 @@ def sql_df_preprocess(sql_db_fn, date=None):
     return df
 
 
+# 擷取全天發電量的資料表
 def get_whole_day_df(sql_db_fn, date=None):
     df = sql_df_preprocess(sql_db_fn, date)
 
@@ -141,6 +146,7 @@ def get_whole_day_df(sql_db_fn, date=None):
     return df
 
 
+# 以全天發電量資料產生適合發電結構圖的資料格式
 def get_whole_day_tree_df(df=None, sql_db_fn=None, date=None):
     if df is None:
         df = get_whole_day_df(sql_db_fn, date)
@@ -154,6 +160,7 @@ def get_whole_day_tree_df(df=None, sql_db_fn=None, date=None):
     return tree_df
 
 
+# 擷取即時發電量的資料表
 def get_realtime_df(sql_db_fn, date=None):
     df = sql_df_preprocess(sql_db_fn, date)
 
@@ -168,6 +175,7 @@ def get_realtime_df(sql_db_fn, date=None):
     return df
 
 
+# 以即時發電量資料產生適合發電結構圖的資料格式
 def get_realtime_tree_df(df=None, sql_db_fn=None, date=None):
     if df is None:
         df = get_realtime_df(sql_db_fn, date)
@@ -179,6 +187,8 @@ def get_realtime_tree_df(df=None, sql_db_fn=None, date=None):
                                            color_map=color_map)
     return tree_df
 
+
+# 擷取今天每個時間點的發電結構資料
 def get_alltime_today_df(sql_db_fn, date=None):
     all_df = sql_df_preprocess(sql_db_fn, date)
 
@@ -200,16 +210,18 @@ def get_alltime_today_df(sql_db_fn, date=None):
         all_time_dict[time_str] = df
     return all_time_dict
 
+
+# 以今天每個時間點的發電結構資料產生適合發電結構圖的資料格式
 def get_alltime_today_tree_df(sql_db_fn, date=None):
     all_time_dict = get_alltime_today_df(sql_db_fn, date)
     
     all_tree_dict = {}
     for time_str, this_df in all_time_dict.items():
         all_tree_dict[time_str] = get_realtime_tree_df(this_df)
-    
     return all_tree_dict
 
 
+# 把繪製結構圖需要的資料表存起來
 def save_tree_dfs(sql_db_fn, realtime_data_path, date=None):
     whole_day_df = get_whole_day_df(sql_db_fn, date)
     realtime_df = get_realtime_df(sql_db_fn, date)

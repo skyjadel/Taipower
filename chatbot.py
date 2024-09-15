@@ -18,6 +18,8 @@ realtime_data_path = './realtime/realtime_data/'
 api_key_path = 'D:/資料科學與人工智慧實驗室/授權/openai/key.txt'
 model = 'gpt-4'
 
+
+# 按照尖峰負載、風力與太陽能的預測值與實際值建構參考資料表
 def build_rag_df(historical_data_path=historical_data_path):
     eval_df = pd.read_csv(historical_data_path + 'prediction/evaluation.csv')[0:-1]
     eval_df['日期'] = pd.to_datetime(eval_df['日期'])
@@ -54,6 +56,8 @@ def build_rag_df(historical_data_path=historical_data_path):
     rag_df.rename(col_map, axis=1, inplace=True)
     return rag_df
 
+
+# 依照發電結構資料建立參考資料表 (尚未上線)
 def build_generator_rag_df(realtime_data_path=realtime_data_path):
     whole_day_df = pd.read_csv(f'{realtime_data_path}whole_day_df.csv')
     realtime_df = pd.read_csv(f'{realtime_data_path}realtime_df.csv')
@@ -62,7 +66,8 @@ def build_generator_rag_df(realtime_data_path=realtime_data_path):
     rag_df['日期'] = datetime.datetime.now().date().strftime('%Y-%m-%d')
     return rag_df
 
-#def create_agent(api_key_path=api_key_path, df=[build_rag_df(), build_generator_rag_df()]):
+
+# 建立 agent
 def create_agent(api_key_path=api_key_path, df=build_rag_df()):
     with open(api_key_path, 'r') as f:
         api_key = f.read()
@@ -80,9 +85,9 @@ def create_agent(api_key_path=api_key_path, df=build_rag_df()):
     )
     return agent
 
-agent = create_agent()
 
-def respond_generator(input_message, agent=agent):
+# 對話機器人，被 dashboard 直接呼叫的部分
+def respond_generator(input_message, agent=create_agent()):
     print('='*30)
     print(datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S'))
     try:
