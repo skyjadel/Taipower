@@ -33,6 +33,7 @@ MAE = Array_Metrics.mae
 R2_score = Array_Metrics.r2
 
 from utils.prepare_data import prepare_data, prepare_forecast_observation_df
+from utils.station_info import effective_station_list
 
 
 class Ensemble_Model():
@@ -67,13 +68,14 @@ class Ensemble_Model():
     def __init__(self, Y_feature, 
                  model_path=None, 
                  X_feature_dict=None, hyperparameters_dict=None, weights='uniform',
+                 effective_station_list=effective_station_list,
                  data_path=None, start_date='2023-08-01', end_date='2024-09-30',
                  test_size=0.2, test_last_fold=False,
                  apply_night_peak=False, NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
                  remove_night_peak_samples=True,
                  is_NP_model=False):
 
-        self.station_list = ['臺北', '高雄', '嘉義', '東吉島', '臺中電廠', '通霄漁港']
+        self.station_list = effective_station_list
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
         self.forecast_features = ['晴', '多雲', '陰', '短暫陣雨', '短暫陣雨或雷雨', '午後短暫雷陣雨', '陣雨或雷雨',
                                   '溫度', '降水機率', '相對溼度', '風速', '東西風', '南北風']
