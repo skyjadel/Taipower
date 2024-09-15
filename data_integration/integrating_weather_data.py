@@ -111,12 +111,51 @@ def nanmean(L):
     except:
         return None
     
+def get_avg_temperature(sql_df, hour_range):
+    this_date_str = sql_df.iloc[0]['Time'].split(' ')[0]
+    temperature_list = []
+    for hr in range(hour_range[0], hour_range[1]+1):
+        this_time_str = f'{this_date_str} {hr:02d}:00:00'
+        this_df = sql_df[sql_df['Time']==this_time_str]
+        if len(this_df) > 0:
+            this_temperature = this_df.iloc[0]['Temperature']
+            temperature_list.append(this_temperature)
+    if len(temperature_list) == 0:
+        return None
+    try:
+        return np.nanmean(temperature_list)
+    except:
+        return None
 
-def get_oneday_weather_observation_data(date, station, sql_db_fn):
+def get_avg_windspeed(sql_df, hour_range):
+    this_date_str = sql_df.iloc[0]['Time'].split(' ')[0]
+    windspeed_list = []
+    for hr in range(hour_range[0], hour_range[1]+1):
+        this_time_str = f'{this_date_str} {hr:02d}:00:00'
+        this_df = sql_df[sql_df['Time']==this_time_str]
+        if len(this_df) > 0:
+            this_windspeed = sql_df[sql_df['Time']==this_time_str].iloc[0]['Wind_Speed']
+            windspeed_list.append(this_windspeed)
+    if len(windspeed_list) == 0:
+        return None
+    try:
+        return np.nanmean(windspeed_list)
+    except:
+        return None
+    
+
+def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=False):
     target_col_list = ['站名', '日期', '氣溫(℃)', '最高氣溫(℃)', '最低氣溫(℃)', '相對溼度(%)', '風速(m/s)', 
                        '風向(360degree)', '最大瞬間風(m/s)', '最大瞬間風風向(360degree)', '降水量(mm)',
-                       '降水時數(hour)', '日照時數(hour)', '日照率(%)', '全天空日射量(MJ/㎡)', '總雲量(0~10)']
+                       '降水時數(hour)', '日照時數(hour)', '日照率(%)', '全天空日射量(MJ/㎡)', '總雲量(0~10)',
+                       '午後平均氣溫', '下午平均氣溫', '傍晚平均氣溫',
+                       '午後平均風速', '下午平均風速', '傍晚平均風速']
     sql_col_list = ['Station', 'Time', 'Temperature', 'Weather', 'Wind_Direction', 'Wind_Speed', 'Gust_Wind', 'Humidity', 'Pressure', 'Rainfall', 'Sunlight']
+    hour_description_dict = {
+        '午後': [12, 14],
+        '下午': [15, 17],
+        '傍晚': [18, 20]
+    }
     
     date_str = datetime.datetime.strftime(date, '%Y/%m/%d')
     date_str_2nd_day = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y/%m/%d')
@@ -132,6 +171,8 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn):
     conn.close()
 
     sql_df = pd.DataFrame(sql_output, columns=sql_col_list).sort_values('Time').reset_index(drop=True)
+    if return_sql_df:
+        return sql_df
 
     if len(sql_df) == 0:
         output_dict = {k:np.nan for k in target_col_list}
@@ -162,6 +203,11 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn):
         eff_sunlight_hr = calculate_all_day_sunlight(site_location_dict[station], date_str.replace('/', '-')) * output_dict['日照率(%)'][0] / 100
         output_dict['全天空日射量(MJ/㎡)'] = [round(sun_light_time_to_energy(eff_sunlight_hr), ndigits=2)]
         output_dict['總雲量(0~10)'] = [round((100 - output_dict['日照率(%)'][0]) / 10, ndigits=1)]
+    for des in hour_description_dict.keys():
+        val = get_avg_temperature(sql_df, hour_description_dict[des])
+        output_dict[f'{des}平均氣溫'] = [round(val, ndigits=1) if not val is None else None]
+        val = get_avg_windspeed(sql_df, hour_description_dict[des])
+        output_dict[f'{des}平均風速'] = [round(val, ndigits=1) if not val is None else None]
 
     for k, v in output_dict.items():
         if not (v[0] is None or type(v[0]) == str):
