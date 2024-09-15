@@ -5,7 +5,7 @@ test_hd_path = '../../historical/data/'
 
 def main(sql_db_fn, historical_data_path):
     integrating_forecast.main(sql_db_fn, historical_data_path)
-    integrating_power_data.main(sql_db_fn, historical_data_path, solar_energy_day_only=True)
+    integrating_power_data.main(sql_db_fn, historical_data_path, solar_energy_day_only=False)
     integrating_weather_data.main(sql_db_fn, historical_data_path)
 
 
