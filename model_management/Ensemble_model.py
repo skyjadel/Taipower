@@ -45,6 +45,7 @@ class Ensemble_Model():
         X_feature_dict (dict, optional): 集成學習的每個模型輸入的特徵列表，若沒有引入 model_path 則為必須引數
         hyperparameters_dict (dict, optional): 每個模型的超參數，若沒有引入 model_path 則為必須引數
         weights (dict or str, optional): 集成學習的權重，若沒有引入 model_path 則為必須引數
+        effective_station_list (list of str): 模型考慮氣象站的列表，若沒有引入 model_path 則預設值照 utils.station_info 裡面的設定
         data_path (str, optional): 訓練模型用資料的路徑，若沒有引入 model_path 則為必須引數
         start_date (str, optional): 訓練集資料的開始時間，若早於資料庫的最早時間則以資料庫為準
         end_date (str, optional): 訓練集資料的結束時間，若早於資料庫的結束時間則以資料庫為準
@@ -75,7 +76,6 @@ class Ensemble_Model():
                  remove_night_peak_samples=True,
                  is_NP_model=False):
 
-        self.station_list = effective_station_list
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
         self.forecast_features = ['晴', '多雲', '陰', '短暫陣雨', '短暫陣雨或雷雨', '午後短暫雷陣雨', '陣雨或雷雨',
                                   '溫度', '降水機率', '相對溼度', '風速', '東西風', '南北風']
@@ -83,7 +83,7 @@ class Ensemble_Model():
 
         self.Y_feature = Y_feature
 
-        if self.Y_feature in ['風力', '太陽能', '尖峰負載', '日照率', '最高氣溫', '最低氣溫', '氣溫', '風速']:
+        if self.Y_feature in ['風力', '太陽能', '尖峰負載', '日照率', '最高氣溫', '最低氣溫', '氣溫', '風速'] or '平均' in self.Y_feature:
             self.mode = 'regressor'
             self.varify_metric = R2_score
         elif self.Y_feature in ['夜尖峰']:
@@ -92,7 +92,7 @@ class Ensemble_Model():
 
         if self.Y_feature in ['風力', '太陽能', '尖峰負載', '夜尖峰']:
             self.predict_way = 'obs_to_pwd'
-        elif self.Y_feature in ['日照率', '最高氣溫', '最低氣溫', '氣溫', '風速']:
+        elif self.Y_feature in ['日照率', '最高氣溫', '最低氣溫', '氣溫', '風速'] or '平均' in self.Y_feature:
             self.predict_way = 'fore_to_obs'
 
         # 如果有給 model_path，就從裡面讀取模型
@@ -107,6 +107,7 @@ class Ensemble_Model():
                 raise ValueError('model_path does not exist.')
             return None
         else:
+            self.station_list = effective_station_list
             self.apply_night_peak = apply_night_peak
             self.remove_night_peak_samples = remove_night_peak_samples
             self.X_feature_dict = X_feature_dict
@@ -140,6 +141,7 @@ class Ensemble_Model():
                                                     X_feature_dict=NP_X_feature_dict,
                                                     hyperparameters_dict=NP_hyperparameters_dict,
                                                     weights=NP_weights,
+                                                    effective_station_list=effective_station_list,
                                                     data_path=data_path,
                                                     start_date=start_date,
                                                     end_date=end_date)      
@@ -427,6 +429,10 @@ class Ensemble_Model():
             with open(this_path + 'X_columns.txt', 'w', encoding='utf-8-sig') as f:
                 for col in self.X_cols[model_label]:
                     f.write(col + ', ')
+            
+        with open(model_path + 'Station_list.txt', 'w', encoding='utf-8-sig') as f:
+            for station in self.station_list:
+                f.write(station + ', ')
 
         if self.apply_night_peak and self.Y_feature == '太陽能':
             NP_path = model_path + 'NP_model/'
@@ -444,13 +450,23 @@ class Ensemble_Model():
                 with open(filename, 'r', encoding='big5') as f:
                     X_cols_str = f.read()
             return X_cols_str.split(', ')[0:-1]
+        
+        def get_station_list(filename):
+            try:
+                with open(filename, 'r', encoding='utf-8-sig') as f:
+                    station_str = f.read()
+            except:
+                with open(filename, 'r', encoding='big5') as f:
+                    station_str = f.read()
+            return station_str.split(', ')[0:-1]
 
         self.load_model_metadata(model_path + 'meta.json')
         self.data_df = pd.read_csv(model_path + 'data.csv')
         self.train_df = pd.read_csv(model_path + 'training_set.csv')
 
+        self.station_list = get_station_list(model_path + 'Station_list.txt')
+
         self.model_labels = list(self.X_feature_dict.keys())
-        
         self.X_cols = {model_label: get_x_cols(f'{model_path}{model_label}/X_columns.txt') for model_label in self.model_labels}
         self.scalers = {model_label: joblib.load(f'{model_path}{model_label}/XScaler.pkl') for model_label in self.model_labels}
         
