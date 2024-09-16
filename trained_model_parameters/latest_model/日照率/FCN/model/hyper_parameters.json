@@ -1,1 +1,0 @@
-{"input_f": 64, "output_f": 1, "feature_counts": [16, 16, 16, 8], "dropout_factor": 0.36979837303627927, "positive_define": false, "linear_transform": true}
