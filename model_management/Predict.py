@@ -22,6 +22,12 @@ train_model_main_path = './trained_model_parameters/'
 meta_path = './trained_model_parameters/model_meta_2024-08-11/'
 model_path = train_model_main_path + f'latest_model/'
 
+time_description_dict = {
+    '午後': 12,
+    '下午': 15,
+    '傍晚': 18
+}
+
 
 def SunLightRate_to_SunFlux(rate, station, date):
     site = site_location_dict[station]
@@ -56,7 +62,11 @@ def predict_weather_features(model_path: str, input_forecast_df: DataFrame):
     forecast_df = convert_forecast_data(input_forecast_df) 
     output_df = deepcopy(forecast_df[['日期', '站名']])
     
-    Y_feature_list = ['日照率', '最低氣溫', '最高氣溫', '氣溫', '風速']
+    Y_feature_list = [
+        '日照率', '最低氣溫', '最高氣溫', '氣溫', '風速',
+        '午後平均氣溫', '下午平均氣溫', '傍晚平均氣溫',
+        '午後平均風速', '下午平均風速', '傍晚平均風速',
+        ]
     
     for Y_feature in Y_feature_list:
         MODEL = Ensemble_Model(Y_feature, model_path)
@@ -68,6 +78,7 @@ def predict_weather_features(model_path: str, input_forecast_df: DataFrame):
         this_sun_flux = SunLightRate_to_SunFlux(output_df['日照率'].iloc[i], output_df['站名'].iloc[i], output_df['日期'].iloc[i])
         sun_flux.append(this_sun_flux)
     output_df['全天空日射量'] = sun_flux
+
     return output_df
 
 
@@ -85,7 +96,6 @@ def predict_power_features(model_path: str, input_weather_df: DataFrame):
 
 
 def evaluation(data_path=data_path, moving_mae_days=7):
-
     # 讀取正確答案與預測答案並合併成一張表
     power_df = read_historical_power_data(data_path + 'power/power_generation_data.csv')
     power_pred_df = pd.read_csv(data_path + 'prediction/power.csv')
@@ -118,7 +128,8 @@ def main_predict(data_path: str = data_path,
                  predict_days: int = 7,
                  save_prediction: bool = True,
                  update_prediction: bool = False,
-                 avoid_training_set: bool = True):
+                 avoid_training_set: bool = True,
+                 predict_weather_only: bool = False,):
     '''主要的預測函數，會產生並儲存天氣與電力預測結果
     Arg:
         data_path (str, optional): 預測用資料路徑
@@ -151,6 +162,8 @@ def main_predict(data_path: str = data_path,
 
     # 完成預測
     wDF = predict_weather_features(model_path, input_forecast_df=forecast_df)
+    if predict_weather_only:
+        return wDF
     pwd_DF = predict_power_features(model_path, wDF)
     wDF['日期'] = wDF['日期'].dt.date
     pwd_DF['日期'] = pwd_DF['日期'].dt.date
