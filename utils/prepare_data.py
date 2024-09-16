@@ -14,7 +14,7 @@ from utils.convert_wind_info import polar_to_cartesian_coord
 
 import utils.power_generation_types as power_types #各發電機組屬於哪種發電方式的定義檔
 from utils.holidays import *
-from utils.station_info import effective_station_list as station_names
+from utils.station_info import effective_station_list as station_names #這邊的氣象站列表只會影響 氣象觀測-電力資訊 的那張表
 
 # 日期數字化的第 0 天
 FIRST_DATE_STR = '2023-01-01'
