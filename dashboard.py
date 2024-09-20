@@ -16,7 +16,7 @@ realtime_data_path = './realtime/realtime_data/'
 historical_data_path = './historical/data/prediction/'
 historical_power_structure_path = './historical/data/power/power_structure/'
 realtime_power_structure_path = f'{historical_power_structure_path}today/'
-y_feature_list = ['尖峰負載', '風力', '太陽能']
+y_feature_list = ['尖峰負載', '太陽能', '風力']
 moving_average_days = 14
 
 now = datetime.datetime.now() 
@@ -281,6 +281,8 @@ def AI_assistant():
         with st.chat_message("assistant"):
             response = st.write_stream(response_generator(prompt))
         st.session_state.messages.append({"role": "assistant", "content": response})
+    
+    st.text('Powered by OpenAI GPT-4')
 
 
 # 製作發電結構圖
@@ -307,6 +309,7 @@ def tree_map():
         if s == '00:00':
             time_option_list.remove('00:00')
             time_option_list.append('24:00')
+            time_str_dict['24:00'] = time_str_dict['00:00']
 
     time_option_list.sort()
 
