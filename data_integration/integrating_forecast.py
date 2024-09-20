@@ -44,10 +44,10 @@ def retrieve_forecast_from_sql(town, sql_db_path, start_date=None, end_date=None
     sql_command = f"SELECT * FROM forecast WHERE town = '{town}' "
     if not start_date is None:
         date_string = strftime(start_date, '%Y/%m/%d %H:%M:%S')
-        sql_command += f"AND obs_time >= '{date_string}' "
+        sql_command += f"AND forecast_time >= '{date_string}' "
     if not end_date is None:
         date_string = strftime(end_date, '%Y/%m/%d %H:%M:%S')
-        sql_command += f"AND obs_time < '{date_string}' "
+        sql_command += f"AND forecast_time < '{date_string}' "
 
     cursor.execute(sql_command)
     rows = cursor.fetchall()
