@@ -142,21 +142,10 @@ def get_avg_windspeed(sql_df, hour_range):
         return np.nanmean(windspeed_list)
     except:
         return None
-    
 
-def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=False):
-    target_col_list = ['站名', '日期', '氣溫(℃)', '最高氣溫(℃)', '最低氣溫(℃)', '相對溼度(%)', '風速(m/s)', 
-                       '風向(360degree)', '最大瞬間風(m/s)', '最大瞬間風風向(360degree)', '降水量(mm)',
-                       '降水時數(hour)', '日照時數(hour)', '日照率(%)', '全天空日射量(MJ/㎡)', '總雲量(0~10)',
-                       '午後平均氣溫', '下午平均氣溫', '傍晚平均氣溫',
-                       '午後平均風速', '下午平均風速', '傍晚平均風速']
+
+def get_entire_day_observation(date, station, sql_db_fn):
     sql_col_list = ['Station', 'Time', 'Temperature', 'Weather', 'Wind_Direction', 'Wind_Speed', 'Gust_Wind', 'Humidity', 'Pressure', 'Rainfall', 'Sunlight']
-    hour_description_dict = {
-        '午後': [12, 14],
-        '下午': [15, 17],
-        '傍晚': [18, 20]
-    }
-    
     date_str = datetime.datetime.strftime(date, '%Y/%m/%d')
     date_str_2nd_day = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y/%m/%d')
     
@@ -171,6 +160,24 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=
     conn.close()
 
     sql_df = pd.DataFrame(sql_output, columns=sql_col_list).sort_values('Time').reset_index(drop=True)
+    return sql_df
+    
+
+def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=False):
+    target_col_list = ['站名', '日期', '氣溫(℃)', '最高氣溫(℃)', '最低氣溫(℃)', '相對溼度(%)', '風速(m/s)', 
+                       '風向(360degree)', '最大瞬間風(m/s)', '最大瞬間風風向(360degree)', '降水量(mm)',
+                       '降水時數(hour)', '日照時數(hour)', '日照率(%)', '全天空日射量(MJ/㎡)', '總雲量(0~10)',
+                       '午後平均氣溫', '下午平均氣溫', '傍晚平均氣溫',
+                       '午後平均風速', '下午平均風速', '傍晚平均風速']
+    hour_description_dict = {
+        '午後': [12, 14],
+        '下午': [15, 17],
+        '傍晚': [18, 20]
+    }
+
+    date_str = datetime.datetime.strftime(date, '%Y/%m/%d')
+    sql_df = get_entire_day_observation(date, station, sql_db_fn)
+
     if return_sql_df:
         return sql_df
 
