@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
-from langchain.sql_database import SQLDatabase
-from langchain.agents import create_sql_agent
+from langchain_community.utilities import SQLDatabase
+from langchain_community.agent_toolkits.sql.base import create_sql_agent
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from openai import RateLimitError
@@ -16,13 +16,16 @@ model = 'gpt-4o-mini'
 
 sql_db_fn = './historical/data/power/power_structure/RAG_sql.db'
 
+now = datetime.datetime.now() 
+now += (datetime.timedelta(hours=8) - now.astimezone().tzinfo.utcoffset(None))
+
 system_message = (
     '指示: 請將日期改成 YYYY-MM-DD 格式, 時間改成 HH:MM:SS 格式 '
-    #'資料庫裡面有四個表: peak_load_predition, peak_load_truth, real_time_power_generation, total_daily_power_generation '
-    #'total_daily_power_generation 裡面的欄位是 date, unit, plant, type, daily_generation_GWh, 分別代表日期、發電機組、電廠、發電方式、全天總發電量單位GWh '
-    #'real_time_power_generation 裡面的欄位是 time, unit, plant, type, realtime_generation_MW, 分別代表時間、發電機組、電廠、發電方式、即時發電功率單位MW '
-    #'peak_load_predition 裡面的欄位是 date, wind_energy_MW, solar_energy_MW, total_MW, 分別代表日期、風力發電預測值、太陽能發電預測值、尖峰負載預測值，數值單位都是 MW '
-    #'peak_load_truth 裡面的欄位是 date, wind_energy_MW, solar_energy_MW, total_MW, wind_energy_error_MW, solar_energy_error_MW, total_error_MW, '
+    '資料庫裡面有四個表: peak_load_predition, peak_load_truth, real_time_power_generation, total_daily_power_generation '
+    'total_daily_power_generation 裡面的欄位是 date, unit, plant, type, daily_generation_GWh, 分別代表日期、發電機組、電廠、發電方式、全天總發電量單位GWh '
+    'real_time_power_generation 裡面的欄位是 time, unit, plant, type, realtime_generation_MW, 分別代表時間、發電機組、電廠、發電方式、即時發電功率單位MW '
+    'peak_load_predition 裡面的欄位是 date, wind_energy_MW, solar_energy_MW, total_MW, 分別代表日期、風力發電預測值、太陽能發電預測值、尖峰負載預測值，數值單位都是 MW '
+    'peak_load_truth 裡面的欄位是 date, wind_energy_MW, solar_energy_MW, total_MW, wind_energy_error_MW, solar_energy_error_MW, total_error_MW, '
     '分別代表日期、風力發電實際值、太陽能發電實際值、尖峰負載實際值，風力發電預測誤差、太陽能發電預測誤差、尖峰負載預測誤差，數值單位都是 MW '
     '請將回應數字四捨五入到小數點以下第二位 '
     '問題中有現在或即時，請先找到在 real_time_power_generation 裡面最晚的時間，再去找這個時間的資料'
@@ -33,13 +36,13 @@ system_message = (
     '中文與英數符號之間要有空格 '
     'Gas 在表中的寫法是 LNG '
     '中文的「尖峰」對應到 peak_load_predition, peak_load_truth 兩張表 '
-    '如果問到預測，請不要去找 real_time_power_generation, total_daily_power_generation '
+    '如果問到預測、預計，請到 peak_load_predition找資料'
     '當被問到電廠發電量或發電方式發電量的排名問題，請將屬於每個電廠或發電方式的資料分別加總，再來排名 '
 )
 
 
 class SQL_Agent():
-    def __init__(self, sql_db_fn=sql_db_fn, verbose=False):
+    def __init__(self, sql_db_fn=sql_db_fn, verbose=True):
         self.Agent = self._create_agent(sql_db_fn, verbose=verbose)
         self.system_message = system_message
 
@@ -57,7 +60,7 @@ class SQL_Agent():
         return agent
 
     def invoke(self, input_message):
-        respond = self.Agent.invoke(f'User: "{input_message}", Time Now: {datetime.datetime.now()}, instruction:{system_message}')
+        respond = self.Agent.invoke(f'User: "{input_message}", Time Now: {now}, instruction:{system_message}')
         return respond['output']
 
 
