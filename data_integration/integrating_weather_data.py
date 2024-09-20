@@ -110,7 +110,8 @@ def nanmean(L):
         return np.nanmean(L)
     except:
         return None
-    
+
+
 def get_avg_temperature(sql_df, hour_range):
     this_date_str = sql_df.iloc[0]['Time'].split(' ')[0]
     temperature_list = []
@@ -126,6 +127,7 @@ def get_avg_temperature(sql_df, hour_range):
         return np.nanmean(temperature_list)
     except:
         return None
+
 
 def get_avg_windspeed(sql_df, hour_range):
     this_date_str = sql_df.iloc[0]['Time'].split(' ')[0]
@@ -186,6 +188,7 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=
         output_dict['站名'] = [station]
         output_dict['日期'] = [date_str]
         return output_dict, sql_df
+    
     output_dict = {}
     output_dict['站名'] = [station]
     output_dict['日期'] = [date_str]
@@ -201,6 +204,7 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=
     output_dict['降水量(mm)'] = [sql_df['Rainfall'].iloc[-1]]
     output_dict['降水時數(hour)'] = [get_rainfall_hr(sql_df['Rainfall'])]
     output_dict['日照時數(hour)'] = [sql_df['Sunlight'].iloc[-1]]
+    
     if output_dict['日照時數(hour)'][0] is None:
         output_dict['日照率(%)'] = output_dict['日照時數(hour)']
         output_dict['全天空日射量(MJ/㎡)'] = output_dict['日照時數(hour)']
@@ -219,8 +223,7 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=
     for k, v in output_dict.items():
         if not (v[0] is None or type(v[0]) == str):
             if np.isnan(v[0]):
-                output_dict[k] = [None]
-    
+                output_dict[k] = [None]    
     return output_dict, sql_df
 
 
