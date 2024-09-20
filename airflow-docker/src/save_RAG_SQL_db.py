@@ -52,10 +52,11 @@ def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_
     file_list = [data_path + s for s in os.listdir(data_path) if '.csv' in s]
 
     for fn in file_list:
-        if ':' in fn:
+        if '_' in fn.split('/')[-1]:
             datetime_str = fn.split('/')[-1].split('.')[0].split('_')[-1].replace('-', ':') + ':00'
         else:
             datetime_str = fn.split('/')[-1].split('.')[0]
+
 
         df = pd.read_csv(fn)
 
@@ -91,7 +92,7 @@ def update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='p
 
     if type == 'prediction':
         csv_filename = peak_data_path + 'power.csv'
-        table_name = 'peak_load_predition'
+        table_name = 'peak_load_prediction'
         err_table_command = ''
     elif type == 'truth':
         csv_filename = peak_data_path + 'evaluation.csv'
@@ -150,9 +151,9 @@ def update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='p
 
             else:
                 if type == 'prediction':
-                    sql_command = f"INSERT INTO peak_load_truth VALUES ('{date_str}', {wind_value}, {solar_value}, {total_value});"
-                elif type == 'turth':
-                    sql_command = f"INSERT INTO peak_load_truth VALUES ('{date_str}', {wind_value}, {solar_value}, {total_value}, {wind_error}, {solar_error}, {total_error});"
+                    sql_command = f"INSERT INTO {table_name} VALUES ('{date_str}', {wind_value}, {solar_value}, {total_value});"
+                elif type == 'truth':
+                    sql_command = f"INSERT INTO {table_name} VALUES ('{date_str}', {wind_value}, {solar_value}, {total_value}, {wind_error}, {solar_error}, {total_error});"
 
             cursor.execute(sql_command)
     
