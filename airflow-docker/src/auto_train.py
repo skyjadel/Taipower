@@ -1,7 +1,7 @@
 from model_management.Train import main_train
 
 params_dict = {
-    'meta_path': '../../trained_model_parameters/model_meta_2024-08-30/', 
+    'meta_path': '../../trained_model_parameters/model_meta_2024-09-10/', 
     'data_path': '../../historical/data/', 
     'test_size': 0.001,
     'test_last_fold': False,
