@@ -30,7 +30,7 @@ Fully-Connected Neural Network
 存放一個 realtime.db 檔，它是一個 sqlite3 的資料庫檔案，存放前面所述爬蟲爬取的資料  
 以及一個 peak.csv 檔，紀錄今天到目前為止用電尖峰的資料，以提供 dashboard.py 使用  
     
-./historical
+./historical  
 存放天氣與電力的歷史資料  
 其中歷史天氣資料路徑為 ./historical/data/weather/finalized/big_table.csv  
 歷史電力資料路徑為 ./historical/data/power/power_deneration_data.csv  
@@ -49,8 +49,8 @@ Fully-Connected Neural Network
 其他需要的模組，以及一些程式需要的先備知識  
 
 ./trained_model_parameters  
-存放現行模型 (latest_model 資料夾) 以及用來訓練新模型使用的超參數
-裡面一個資料夾如果名稱沒有包含 meta ，則存有一個完整的模型版本
+存放現行模型 (latest_model 資料夾) 以及用來訓練新模型使用的超參數  
+裡面一個資料夾如果名稱沒有包含 meta ，則存有一個完整的模型版本  
 名稱包含 meta 的資料夾就只有存放訓練模型用的輸入特徵、超參數，與進行預測時使用的權重
 
 ./airflow-docker  
@@ -65,17 +65,23 @@ EDA 用 jupyter notebook
 ./Power_prediction.ipynb  
 這個筆記本包含從天氣觀測資料預測電力資料的特徵工程，建模與評估模型部分  
 
-./Forecast_to_Weather_obs_Hyperparameter.ipynb  
-這個筆記本包含從氣象預報資料預測氣象觀測資料的特徵工程、建模、超參數調整、集成學習與評估模型部分  
-
-./Weather_obs_to_Power_Hyperparameter.ipynb  
-這個筆記本包含從天氣觀測資料預測電力資料的超參數調整、集成學習與評估模型部分  
+./Hyper_parameter_Tunning_and_Ensemble_Weighting.ipynb  
+這個筆記本包含模型的超參數調整、集成學習與評估模型部分  
 
 ./dashboard.py  
 定義 streamlit 儀表板，就是我們在 <a href="http://ec2-54-206-30-159.ap-southeast-2.compute.amazonaws.com:8501/">這裡</a> 看到的  
 
 ./chatbot.py  
 定義聊天機器人，利用模型預測結果與真實電力資訊回答電力相關問題。  
+
+## 資料收集
+如果你要在你的機器上執行這個專案並訓練最新模型，你會需要先下載歷史氣象與電力資料  
+歷史電力資料：https://www.taipower.com.tw/d006/loadGraph/loadGraph/data/sys_dem_sup.csv  
+歷史氣象資料：https://codis.cwa.gov.tw/StationData  
+將以下氣象站從 2024 年 9 月以來的月報表下載下來：臺北、高雄、嘉義、東吉島、臺西、臺中電廠、通霄漁港、福寶    
+將電力資料放在 ./historical/data/power/ 裡面，氣象月報表放在 ./historical/data/weather/raw/ 裡面  
+然後執行 ./historical/src 裡面的兩個筆記本 (需先安裝 Python 環境、Jupyter Notebook、以及 Python 套件 Pandas 與 Numpy)  
+把新下載的資料整合進 ./historical/data/weather/finalized/big_table.csv 與 ./historical/data/power/power_deneration_data.csv 裡
 
 ## 安裝與使用方法
 ### 系統需求
@@ -84,14 +90,24 @@ EDA 用 jupyter notebook
 這個專案的自動執行部分使用 airflow 與 Docker 進行，因此我們要先安裝 Docker  
 如果你是使用 Windows 10 或 Windows 11，可以參考 <a href="https://medium.com/@weiberson/%E5%9C%A8win11%E5%AE%89%E8%A3%9Dwsl%E5%92%8Cdocker%E5%AE%89%E8%A3%9D%E6%95%99%E5%AD%B8-6d50473b5e09">這篇</a> 安裝 WSL2 與 Docker  
 接下來請準備一個乾淨的資料夾 (以下以 D:\Taipower\ 為例)，將專案在裡面複製一份  
-然後打開 WSL2 的終端機，在命令列執行 cd /mnt/d/Taipower/airflow-docker
+然後打開 WSL2 的終端機，在命令列執行 
 
-## 資料收集
-如果你的專案需要特定的資料集，這裡可以提供一些關於如何獲取、處理或下載資料的指示。
+```bash
+# 進入 docker 主目錄
+cd /mnt/d/Taipower/airflow-docker
+# 執行 shell script，把所需模組複製到 docker 主目錄，並啟動 Docker 容器，在 Docker 容器裡執行預先設計好的程序。
+source compose.sh
+```
 
-## 資料分析流程
-這一部分描述你的資料分析流程，包括你使用的方法、模型或演算法。你可以提供程式碼片段或流程圖來幫助讀者理解你的分析過程。
+等到終端機顯示執行完畢之後 (約一分鐘)，用瀏覽器打開 localhost:8080  
+輸入 ID: admin, password: admin  
+登入 Airflow Web UI 之後把每一行排程最左邊的開關打開  
 
-## 結果展示
-展示和解釋你的資料分析結果。可以包括圖表、視覺化效果或統計數據，並提供解釋和洞察。
+之後不要關掉 WSL2 與 Docker desktop 這兩個視窗，這樣 Airflow 就會進行以下自動任務
+- 每天數次自動抓取最新電力與氣象資料，存在 ./historical/data/power 與 ./historical/data/weather 兩個路徑
+- 每天一次自動使用模型進行預測與驗證，存在 ./historical/data/prediction 裡面
+- 每週自動進行新模型訓練與評估，存在 ./trained_model_parameters 裡面
+
+## 更多說明
+專案的詳細說明請見這份 <a href="https://drive.google.com/file/d/1gchn6XPjxfEc7dPaPCmiCJMJAQHMim9Y/view?usp=sharing">文件</a>
 
