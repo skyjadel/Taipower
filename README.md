@@ -65,11 +65,8 @@ EDA 用 jupyter notebook
 ./Power_prediction.ipynb  
 這個筆記本包含從天氣觀測資料預測電力資料的特徵工程，建模與評估模型部分  
 
-./Forecast_to_Weather_obs_Hyperparameter.ipynb  
-這個筆記本包含從氣象預報資料預測氣象觀測資料的特徵工程、建模、超參數調整、集成學習與評估模型部分  
-
-./Weather_obs_to_Power_Hyperparameter.ipynb  
-這個筆記本包含從天氣觀測資料預測電力資料的超參數調整、集成學習與評估模型部分  
+./Hyper_parameter_Tunning_and_Ensemble_Weighting.ipynb  
+這個筆記本包含模型的超參數調整、集成學習與評估模型部分  
 
 ./dashboard.py  
 定義 streamlit 儀表板，就是我們在 <a href="http://ec2-54-206-30-159.ap-southeast-2.compute.amazonaws.com:8501/">這裡</a> 看到的  
