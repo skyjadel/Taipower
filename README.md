@@ -93,8 +93,13 @@ EDA 用 jupyter notebook
 如果你是使用 Windows 10 或 Windows 11，可以參考 <a href="https://medium.com/@weiberson/%E5%9C%A8win11%E5%AE%89%E8%A3%9Dwsl%E5%92%8Cdocker%E5%AE%89%E8%A3%9D%E6%95%99%E5%AD%B8-6d50473b5e09">這篇</a> 安裝 WSL2 與 Docker  
 接下來請準備一個乾淨的資料夾 (以下以 D:\Taipower\ 為例)，將專案在裡面複製一份  
 然後打開 WSL2 的終端機，在命令列執行 
-- cd /mnt/d/Taipower/airflow-docker
-- source compose.sh
+
+```bash
+# 進入 docker 主目錄
+cd /mnt/d/Taipower/airflow-docker
+# 執行 shell script，把所需模組複製到 docker 主目錄，並啟動 Docker 容器，在 Docker 容器裡執行預先設計好的程序。
+source compose.sh
+```
 
 等到終端機顯示執行完畢之後 (約一分鐘)，用瀏覽器打開 localhost:8080  
 輸入 ID: admin, password: admin  
