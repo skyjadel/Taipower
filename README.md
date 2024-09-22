@@ -95,7 +95,7 @@ EDA 用 jupyter notebook
 然後打開 WSL2 的終端機，在命令列執行 
 - cd /mnt/d/Taipower/airflow-docker
 - source compose.sh
-等到終端機顯示執行完畢之後 (約一分鐘)，用瀏覽器打開 https://localhost:8800
+等到終端機顯示執行完畢之後 (約一分鐘)，用瀏覽器打開 localhost:8080
 輸入 ID: admin, password: admin
 登入 Airflow Web UI 之後把每一行排程最左邊的開關打開
 
