@@ -77,6 +77,14 @@ EDA 用 jupyter notebook
 ./chatbot.py  
 定義聊天機器人，利用模型預測結果與真實電力資訊回答電力相關問題。  
 
+## 資料收集
+如果你要在你的機器上執行這個專案並訓練最新模型，你會需要先下載歷史氣象與電力資料  
+歷史電力資料：https://www.taipower.com.tw/d006/loadGraph/loadGraph/data/sys_dem_sup.csv  
+歷史氣象資料：https://codis.cwa.gov.tw/StationData  
+將以下氣象站從 2024 年 9 月以來的月報表下載下來：臺北、高雄、嘉義、東吉島、臺西、臺中電廠、通霄漁港、福寶    
+將電力資料放在 ./historical/data/power/ 裡面，氣象月報表放在 ./historical/data/weather/raw/ 裡面  
+然後執行 ./historical/src 裡面的兩個筆記本，把新下載的資料整合進 ./historical/data/weather/finalized/big_table.csv 與 ./historical/data/power/power_deneration_data.csv 裡
+
 ## 安裝與使用方法
 ### 系統需求
 由於這個專案有使用一點點的深度學習，所以系統最好要有與 cuda 相容的顯示卡，VRAM 最好要在 6GB 以上
@@ -84,14 +92,18 @@ EDA 用 jupyter notebook
 這個專案的自動執行部分使用 airflow 與 Docker 進行，因此我們要先安裝 Docker  
 如果你是使用 Windows 10 或 Windows 11，可以參考 <a href="https://medium.com/@weiberson/%E5%9C%A8win11%E5%AE%89%E8%A3%9Dwsl%E5%92%8Cdocker%E5%AE%89%E8%A3%9D%E6%95%99%E5%AD%B8-6d50473b5e09">這篇</a> 安裝 WSL2 與 Docker  
 接下來請準備一個乾淨的資料夾 (以下以 D:\Taipower\ 為例)，將專案在裡面複製一份  
-然後打開 WSL2 的終端機，在命令列執行 cd /mnt/d/Taipower/airflow-docker
+然後打開 WSL2 的終端機，在命令列執行 
+- cd /mnt/d/Taipower/airflow-docker
+- source compose.sh
+等到終端機顯示執行完畢之後 (約一分鐘)，用瀏覽器打開 https://localhost:8800
+輸入 ID: admin, password: admin
+登入 Airflow Web UI 之後把每一行排程最左邊的開關打開
 
-## 資料收集
-如果你的專案需要特定的資料集，這裡可以提供一些關於如何獲取、處理或下載資料的指示。
+之後不要關掉 WSL2 與 Docker desktop 這兩個視窗，這樣 Airflow 就會進行以下自動任務
+- 每天數次自動抓取最新電力與氣象資料，存在 ./historical/data/power 與 ./historical/data/weather 兩個路徑
+- 每天一次自動使用模型進行預測與驗證，存在 ./historical/data/prediction 裡面
+- 每週自動進行新模型訓練與評估，存在 ./trained_model_parameters 裡面
 
-## 資料分析流程
-這一部分描述你的資料分析流程，包括你使用的方法、模型或演算法。你可以提供程式碼片段或流程圖來幫助讀者理解你的分析過程。
-
-## 結果展示
-展示和解釋你的資料分析結果。可以包括圖表、視覺化效果或統計數據，並提供解釋和洞察。
+## 更多說明
+專案的詳細說明請見這份 <a href="https://drive.google.com/file/d/1gchn6XPjxfEc7dPaPCmiCJMJAQHMim9Y/view?usp=sharing">文件</a>
 
