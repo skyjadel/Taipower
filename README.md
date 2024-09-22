@@ -30,7 +30,7 @@ Fully-Connected Neural Network
 存放一個 realtime.db 檔，它是一個 sqlite3 的資料庫檔案，存放前面所述爬蟲爬取的資料  
 以及一個 peak.csv 檔，紀錄今天到目前為止用電尖峰的資料，以提供 dashboard.py 使用  
     
-./historical
+./historical  
 存放天氣與電力的歷史資料  
 其中歷史天氣資料路徑為 ./historical/data/weather/finalized/big_table.csv  
 歷史電力資料路徑為 ./historical/data/power/power_deneration_data.csv  
@@ -49,8 +49,8 @@ Fully-Connected Neural Network
 其他需要的模組，以及一些程式需要的先備知識  
 
 ./trained_model_parameters  
-存放現行模型 (latest_model 資料夾) 以及用來訓練新模型使用的超參數
-裡面一個資料夾如果名稱沒有包含 meta ，則存有一個完整的模型版本
+存放現行模型 (latest_model 資料夾) 以及用來訓練新模型使用的超參數  
+裡面一個資料夾如果名稱沒有包含 meta ，則存有一個完整的模型版本  
 名稱包含 meta 的資料夾就只有存放訓練模型用的輸入特徵、超參數，與進行預測時使用的權重
 
 ./airflow-docker  
