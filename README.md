@@ -78,7 +78,10 @@ EDA 用 jupyter notebook
 如果你要在你的機器上執行這個專案並訓練最新模型，你會需要先下載歷史氣象與電力資料  
 歷史電力資料：https://www.taipower.com.tw/d006/loadGraph/loadGraph/data/sys_dem_sup.csv  
 歷史氣象資料：https://codis.cwa.gov.tw/StationData  
-將以下氣象站從 2024 年 9 月以來的月報表下載下來：臺北、高雄、嘉義、東吉島、臺西、臺中電廠、通霄漁港、福寶    
+將以下氣象站從 2024 年 9 月以來的月報表、氣溫單項逐時月報表與風速/風向單項逐時月報表下載下來：  
+
+臺北、高雄、嘉義、東吉島、臺西、臺中電廠、通霄漁港、福寶    
+
 將電力資料放在 ./historical/data/power/ 裡面，氣象月報表放在 ./historical/data/weather/raw/ 裡面  
 然後執行 ./historical/src 裡面的兩個筆記本 (需先安裝 Python 環境、Jupyter Notebook、以及 Python 套件 Pandas 與 Numpy)  
 把新下載的資料整合進 ./historical/data/weather/finalized/big_table.csv 與 ./historical/data/power/power_deneration_data.csv 裡
