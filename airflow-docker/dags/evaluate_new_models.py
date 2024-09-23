@@ -11,7 +11,7 @@ model_dir = '/opt/airflow/models_tobe_evaluated/'
 current_model_path = '/opt/airflow/model/'
 
 def run(data_path=data_path, model_dir=model_dir, current_model_path=current_model_path):
-    evalute_models(data_path, model_dir=model_dir, current_model_path=current_model_path)
+    evaluate_models(data_path, model_dir=model_dir, current_model_path=current_model_path)
 
 
 default_args = {
