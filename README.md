@@ -65,7 +65,7 @@ EDA 用 jupyter notebook
 ./Hyper parameter Tunning and Ensemble Weighting.ipynb  
 這個筆記本包含模型的超參數調整、集成學習與評估模型部分  
 
-./Comparison_of_Weather_Pred_and_Obs.ipynb
+./Comparison_of_Weather_Pred_and_Obs.ipynb  
 這個筆記本呈現了從預報預測天氣的模型的表現
 
 ./dashboard.py  
