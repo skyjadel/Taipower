@@ -59,14 +59,14 @@ Fully-Connected Neural Network
 ./EDA.ipynb  
 EDA 用 jupyter notebook  
 
-./Test_realtime_airflow.ipynb  
-印出 airflow 與爬蟲抓取的最新資料，以便以肉眼檢查資料正確性  
-
 ./Power_prediction.ipynb  
 這個筆記本包含從天氣觀測資料預測電力資料的特徵工程，建模與評估模型部分  
 
-./Hyper_parameter_Tunning_and_Ensemble_Weighting.ipynb  
+./Hyper parameter Tunning and Ensemble Weighting.ipynb  
 這個筆記本包含模型的超參數調整、集成學習與評估模型部分  
+
+./Comparison_of_Weather_Pred_and_Obs.ipynb
+這個筆記本呈現了從預報預測天氣的模型的表現
 
 ./dashboard.py  
 定義 streamlit 儀表板，就是我們在 <a href="http://ec2-54-206-30-159.ap-southeast-2.compute.amazonaws.com:8501/">這裡</a> 看到的  
