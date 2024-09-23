@@ -107,6 +107,23 @@ source compose.sh
 - 每天數次自動抓取最新電力與氣象資料，存在 ./historical/data/power 與 ./historical/data/weather 兩個路徑
 - 每天一次自動使用模型進行預測與驗證，存在 ./historical/data/prediction 裡面
 - 每週自動進行新模型訓練與評估，存在 ./trained_model_parameters 裡面
+### 儀表板
+要在 local 端執行儀表板，在你的 Python 環境中會需要安裝一些套件
+```bash
+pip install streamlit
+pip install pandas
+pip install numpy
+pip install plotly
+pip install langchain langchain_community langchain_openai
+pip install SQLAlchemy 
+```
+然後進到專案主目錄，執行
+```bash
+streamlit run .\dashboard.py
+```
+這樣應該會自動跳出一個瀏覽器視窗，連到你的儀表板
+
+當然，要讓儀表板隨時顯示最新資料的話，你必須啟動 Airflow 來自動執行 Data ETL 與 MLOps 的程序
 
 ## 更多說明
 專案的詳細說明請見這份 <a href="https://drive.google.com/file/d/1gchn6XPjxfEc7dPaPCmiCJMJAQHMim9Y/view?usp=sharing">文件</a>
