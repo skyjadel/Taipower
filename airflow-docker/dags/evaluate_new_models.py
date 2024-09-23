@@ -4,7 +4,7 @@ from datetime import timedelta
 from StartDate import startdate
 import sys
 sys.path.append('/opt/airflow/')
-from Evaluate_Given_Models import evalute_models
+from Evaluate_Given_Models import evaluate_models
 
 data_path = '/opt/airflow/historical_data/'
 model_dir = '/opt/airflow/models_tobe_evaluated/'

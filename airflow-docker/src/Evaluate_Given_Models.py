@@ -9,7 +9,7 @@ test_data_path = '../../historical/data/'
 test_model_dir = '../../trained_model_parameters/models_tobe_evaluated/'
 test_current_model_path = '../../trained_model_parameters/latest_model/'
 
-def evalute_models(data_path, model_dir, current_model_path, evaluation_tolerence_days=0):
+def evaluate_models(data_path, model_dir, current_model_path, evaluation_tolerence_days=0):
     avoid_training_set = (evaluation_tolerence_days <= 0)
     power_features = ['風力', '太陽能', '尖峰負載']
 
@@ -91,4 +91,4 @@ def evalute_models(data_path, model_dir, current_model_path, evaluation_tolerenc
     return total_eval_df
 
 if __name__ == '__main__':
-    evalute_models(test_data_path, test_model_dir, test_current_model_path, evaluation_tolerence_days=5)
+    evaluate_models(test_data_path, test_model_dir, test_current_model_path, evaluation_tolerence_days=5)
