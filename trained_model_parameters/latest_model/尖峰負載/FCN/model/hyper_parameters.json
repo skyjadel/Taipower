@@ -1,1 +1,1 @@
-{"input_f": 22, "output_f": 1, "feature_counts": [16, 16, 16, 8], "dropout_factor": 0.0035655506712701512, "positive_define": false, "linear_transform": true}
+{"input_f": 28, "output_f": 1, "feature_counts": [16, 16, 16, 8], "dropout_factor": 0.0035655506712701512, "positive_define": false, "linear_transform": true}
