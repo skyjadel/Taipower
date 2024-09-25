@@ -17,8 +17,8 @@ default_args = {
 dag = DAG(
     'p_dag',
     default_args=default_args,
-    description='Run p.py main() every 30 minutes',
-    schedule_interval='*/30 * * * *',
+    description='Run p.py main() every 10 minutes',
+    schedule_interval='*/10 * * * *',
     catchup=False,
 )
 
