@@ -4,17 +4,27 @@ import json
 import requests
 from bs4 import BeautifulSoup as bs
 import sqlite3
+from datetime import timedelta, datetime
 
 def get_data(sql_db_path):
+    # 抓取最新資料
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
     headers = {"User-Agent": user_agent}
     req = requests.get(url='https://www.taipower.com.tw/d006/loadGraph/loadGraph/data/genary.json', headers=headers)
     req.encoding = 'utf-8'
 
     JS = json.loads(req.text)
+
     time_str = JS['']
     power_data = JS['aaData']
 
+    # 如果資料時間為 0 點整，則將它視為前一天的資料，時間改為前一天的 23:59，以利後續整理
+    time_now = datetime.strptime(time_str, '%Y-%m-%d %H:%M')
+    if time_now.hour == 0 and time_now.minute == 0:
+        time_now -= timedelta(minutes=1)
+        time_str = datetime.strftime(time_now, '%Y-%m-%d %H:%M') 
+
+    # 存入資料庫
     conn = sqlite3.connect(sql_db_path)
     cursor = conn.cursor()
 

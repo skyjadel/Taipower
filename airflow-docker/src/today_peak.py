@@ -5,7 +5,7 @@ def get_power_generation_at_peak(sql_db):
     # 從 SQL 資料庫提取當天用電尖峰時的資料，儀表板要用
     now = datetime.datetime.now()
     today = now.date()
-    if now.hour == 0 and now.minute <= 40:
+    if now.hour == 0 and now.minute <= 15:
         today -= datetime.timedelta(days=1)
 
     df = get_oneday_power_data(sql_db, today, solar_energy_day_only=False)

@@ -96,7 +96,7 @@ def sql_df_preprocess(sql_db_fn, date=None):
     now = datetime.datetime.now()
     if date is None:
         date = now.date() 
-        if now.hour == 0 and now.minute <= 25:
+        if now.hour == 0 and now.minute <= 15:
             date -= datetime.timedelta(days=1)
             day_completed = True
     else:

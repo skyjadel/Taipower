@@ -18,7 +18,7 @@ def save_tree_dfs(sql_db_fn=sql_db_fn, historical_power_structure_path=historica
 
     now = datetime.datetime.now()
     today = now.date()
-    if now.hour == 0 and now.minute <= 25:
+    if now.hour == 0 and now.minute <= 15:
         today -=  datetime.timedelta(days=1)
 
     end_date = min(end_date, today)
