@@ -5,6 +5,9 @@ import sqlite3
 import pandas as pd
 import datetime
 
+import sys
+sys.path.append('../')
+
 from utils.station_info import town_and_station
 
 strptime = datetime.datetime.strptime
@@ -12,8 +15,8 @@ strftime = datetime.datetime.strftime
 
 lastest_forecast_sample_hr = 19 # 整合每天預報數據時，最晚取到這個時間發布的預報
 
-test_sql_fn = './../../realtime/realtime_data/realtime.db'
-test_hd_path = '../../historical copy/data/'
+test_sql_fn = '../realtime/realtime_data/realtime.db'
+test_hd_path = '../historical/data/'
 
 station_and_town = {v: k for k, v in town_and_station.items()}
 
@@ -158,10 +161,37 @@ def encode_oneday_forecast_data(forecast_df):
                     new_dict[this_key] = this_row[col].iloc[0]
     return pd.DataFrame([new_dict])
 
-def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, sample_hr=lastest_forecast_sample_hr):
-    init_df = retrieve_forecast_from_sql(town, sql_db_path=sql_db_path)
+def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, historical_df=None,
+                                    sample_hr=lastest_forecast_sample_hr, least_integrate_days=5):
+    
+    if not historical_df is None:
+        this_historical_df = historical_df[historical_df['鄉鎮']==town]
+        historical_date_list = list(this_historical_df['日期'])
+        historical_date_list.sort()
+        latest_historical_date = datetime.datetime.strptime(historical_date_list[-1], '%Y-%m-%d')
+
+        sql_date_str_list = list(forecast_times.keys())
+        sql_date_str_list.sort()
+        latest_sql_date_str = sql_date_str_list[-1]
+        start_date = datetime.datetime.strptime(latest_sql_date_str, '%Y/%m/%d') - datetime.timedelta(days=least_integrate_days-1)
+
+        start_date = min(start_date, latest_historical_date + datetime.timedelta(days=1)).date()
+
+        forecast_date_list = []
+        for d in forecast_times.keys():
+            if datetime.datetime.strptime(d, '%Y/%m/%d').date() >= start_date:
+                forecast_date_list.append(d)
+        forecast_times = {d:forecast_times[d] for d in forecast_date_list}
+    else:
+        start_date = None
+
+    init_df = retrieve_forecast_from_sql(town, sql_db_path=sql_db_path, start_date=start_date)
     ran_dates = []
     df_list = []
+    if not historical_df is None:
+        #this_historical_df['日期'] = [datetime.datetime.strptime(d, '%Y-%m-%d') for d in this_historical_df['日期']]
+        df_list.append(this_historical_df)
+
     for d, ts in forecast_times.items():
         if (not d in ran_dates) and sample_hr > ts[0]:
             this_df = sample_forecast_at_given_time(init_df, f'{d} {sample_hr}:00:00')
@@ -170,32 +200,49 @@ def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, sample_hr
             this_df = sample_forecast_with_given_deltaday(this_df)
             this_df = encode_oneday_forecast_data(this_df)
 
+            this_df['日期'] = [datetime.datetime.strftime(d, '%Y-%m-%d') for d in this_df['日期']]
+
             ran_dates.append(d)
             df_list.append(this_df)
     if len(df_list) == 0:
         return None
-    return pd.concat(df_list, axis=0, ignore_index=True).sort_values('日期').reset_index(drop=True)
+    
+    return_df = pd.concat(df_list, axis=0, ignore_index=True)
+    return_df = return_df.drop_duplicates(['日期', '鄉鎮'], keep='last').sort_values('日期').reset_index(drop=True)
+    return return_df
 
-def arrange_forecast_for_towns(towns, sql_db_path, forecast_times, sample_hr=lastest_forecast_sample_hr):
+def arrange_forecast_for_towns(towns, sql_db_path, forecast_times, historical_df=None,
+                               sample_hr=lastest_forecast_sample_hr, least_integrate_days=5):
     df_list = []
     for town in towns:
-        this_df = arrange_forecast_for_given_town(town, sql_db_path, sample_hr=sample_hr, forecast_times=forecast_times)
+        this_df = arrange_forecast_for_given_town(town, sql_db_path, historical_df=historical_df,
+                                                  sample_hr=sample_hr, forecast_times=forecast_times,
+                                                  least_integrate_days=least_integrate_days)
         if not this_df is None:
             df_list.append(this_df)
     return pd.concat(df_list, axis=0, ignore_index=True).reset_index(drop=True)
 
 
-def main(sql_db_fn, historical_data_path):
+def main(sql_db_fn, historical_data_path, save_file=True, least_integrate_days=5):
     # 將 SQL 資料庫中的預報資料整合到歷史預報資料 csv 檔中
     forecast_times = retrieve_update_times_from_sql(sql_db_fn)
-    df = arrange_forecast_for_towns(town_list, sql_db_fn, forecast_times=forecast_times)
-    if not df is None:
+    historical_df = pd.read_csv(historical_data_path+'weather/finalized/weather_forecast.csv')
+    #print(forecast_times)
+    df = arrange_forecast_for_towns(town_list, sql_db_fn, historical_df=historical_df,
+                                    forecast_times=forecast_times, least_integrate_days=least_integrate_days)
+    
+    if df is None:
+        return None
+    
+    if save_file:
         df.to_csv(historical_data_path+'weather/finalized/weather_forecast.csv', encoding='utf-8-sig', index=False)
+        return None
+    
 
 
 if __name__ == '__main__':
     print('Start!')
     print(test_hd_path)
-    main(test_sql_fn, test_hd_path)
+    main(test_sql_fn, test_hd_path, save_file=False)
 
 
