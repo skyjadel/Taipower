@@ -9,6 +9,7 @@ import time
 import os
 
 from chatbot import respond_generator as chatbot_response
+from chatbot import global_agent
 
 #----------Initialization-----------
 
@@ -23,6 +24,8 @@ now = datetime.datetime.now()
 now += (datetime.timedelta(hours=8) - now.astimezone().tzinfo.utcoffset(None))
 
 first_hour_show_today_peak = 12
+first_min_show_lastday_eval = 35
+first_min_show_today_pwd_treemap = 15
 
 #   Define power units
 units = {
@@ -53,7 +56,7 @@ if list(power_pred_df['日期']).index(eval_df['日期'].iloc[-2]) == len(power_
 elif list(power_pred_df['日期']).index(eval_df['日期'].iloc[-2]) == len(power_pred_df) - 3:
     second_row_first_col = 2
 
-if now.hour >= first_hour_show_today_peak or ((now.hour == 0 and now.minute <= 40) and second_row_first_col==2):
+if now.hour >= first_hour_show_today_peak or ((now.hour == 0 and now.minute <= first_min_show_lastday_eval) and second_row_first_col==2):
     peak_today_df = pd.read_csv(f'{realtime_data_path}peak.csv')
     peak_today = peak_today_df.to_dict(orient='list')
 
@@ -107,7 +110,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
             label=f"今日 ({today_str}) 推定數據",
             value=value_string(peak_today[y_feature][0] * this_unit_factor, this_unit)
         )
-    elif (now.hour == 0 and now.minute <= 40) and second_row_first_col==2:
+    elif (now.hour == 0 and now.minute <= first_min_show_lastday_eval) and second_row_first_col==2:
         yesterday_str = datetime.datetime.strftime(now - datetime.timedelta(days=1), '%Y-%m-%d')
         second_row[second_row_first_col-1].metric(
             label=f"昨日 ({yesterday_str}) 推定數據",
@@ -132,7 +135,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
             delta=value_string(this_err - last_err, this_unit),
             delta_color='inverse',
         )
-    elif (now.hour == 0 and now.minute <= 40) and second_row_first_col==2:
+    elif (now.hour == 0 and now.minute <= first_min_show_lastday_eval) and second_row_first_col==2:
         this_err = np.abs(peak_today[y_feature][0] - power_pred_df[y_feature].iloc[-second_row_first_col]) * this_unit_factor
         last_err = err[-1]
         third_row[second_row_first_col-1].metric(
@@ -160,7 +163,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
             label=f"今日尖峰時間",
             value=peak_today['尖峰時間'][0].split(' ')[1]
         )
-    elif (now.hour == 0 and now.minute <= 40) and second_row_first_col==2:
+    elif (now.hour == 0 and now.minute <= first_min_show_lastday_eval) and second_row_first_col==2:
         forth_row[second_row_first_col-1].metric(
             label=f"昨日尖峰時間",
             value=peak_today['尖峰時間'][0].split(' ')[1]
@@ -185,14 +188,12 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     # 備註
     left.text('台灣時間每日 00:30 更新前一日真實發電量資料與預測表現, 每日 19:30 更新次日發電量預測')
 
-
     # 右半邊圖表部分
     right.markdown('#### 歷史預測表現')
-
-    
+ 
     df = deepcopy(eval_df[0:-1])
     if len(df) > 30: # 圖最多顯示 30 天的數據
-        df = deepcopy(df[-30::])
+        df = df[-30::]
         avg_err = avg_err[-30::]
     df['日期'] = pd.to_datetime(df['日期'])
     df[f'{y_feature}'] = [float(v) * this_unit_factor for v in df[f'{y_feature}']]
@@ -207,11 +208,13 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     fig = go.Figure()
     for trace in line_fig.data:
         fig.add_trace(trace)
+
     fig.update_layout(
         title=f'{moving_average_days}日平均誤差 ({this_unit})',
         xaxis_title='日期',
         yaxis_title=f'{y_feature}誤差',
     )
+
     fig.update_traces(selector=dict(type='scatter'), mode='lines+markers+text', textposition="top center")
     right.plotly_chart(fig)
 
@@ -221,6 +224,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
         '類型': [],
         '發電量': []
     }
+
     for i in range(len(df)):
         new_dict['日期'].append(df['日期'].iloc[i])
         new_dict['類型'].append('預測')
@@ -240,6 +244,11 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
 # 製作聊天機器人
 def AI_assistant():
 
+    avatar_dict = {
+        'user': '🕵️‍♂️',
+        'assistant': '🤖'
+    }
+
     # 因為預期有很多問題會需要讓 LLM 知道今天是幾月幾號，所以把這個訊息塞到 prompt 裡面
     def prompt_generator(input_message):
         return f'背景知識：今天是{now.date()}, 對話內容：{input_message}'
@@ -247,11 +256,10 @@ def AI_assistant():
     # Streamed response emulator
     def response_generator(input_message):
         prompt = prompt_generator(input_message)
-        response = chatbot_response(prompt)
+        response = chatbot_response(prompt, global_agent)
         for word in response:
             yield word
             time.sleep(0.05)
-
 
     st.header('聊天機器人')
     st.markdown('#### 問題範例')
@@ -269,16 +277,18 @@ def AI_assistant():
 
     # 把過去聊天內容印出來
     for _, message in enumerate(st.session_state.messages):
-        with st.chat_message(message["role"]):
+        with st.chat_message(message["role"], avatar=avatar_dict[message["role"]]):
             st.markdown(message["content"])
 
     # 目前對話環節
     if prompt := st.chat_input("可以問我關於台電太陽能與風力發電的預測與實際資料，以及尖峰負載的相關問題。"):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
+        role = 'user'
+        with st.chat_message(role, avatar=avatar_dict[role]):
             st.markdown(prompt)
 
-        with st.chat_message("assistant"):
+        role = 'assistant'
+        with st.chat_message(role, avatar=avatar_dict[role]):
             response = st.write_stream(response_generator(prompt))
         st.session_state.messages.append({"role": "assistant", "content": response})
     
@@ -299,17 +309,17 @@ def tree_map():
     left.markdown('# 即時供電結構')
 
     # 準備時間選項與對應資料檔案名
-    time_filename_dict = {datetime.datetime.strptime(s.split('.')[0], '%Y-%m-%d_%H-%M') + datetime.timedelta(minutes=10): s for s in os.listdir(f'{realtime_power_structure_path}')}
+    time_filename_dict = {datetime.datetime.strptime(s.split('.')[0], '%Y-%m-%d_%H-%M'): s for s in os.listdir(f'{realtime_power_structure_path}')}
     time_str_dict = {datetime.datetime.strftime(t, '%H:%M'):t for t in time_filename_dict.keys()}
     time_option_list = list(time_str_dict.keys())
 
-    for s in time_option_list:
-        if not s[-2::] in ['00', '30']:
-            time_option_list.remove(s)
-        if s == '00:00':
-            time_option_list.remove('00:00')
-            time_option_list.append('24:00')
-            time_str_dict['24:00'] = time_str_dict['00:00']
+    # 如果原始時間選項裡面有 23:59 或 00:00，把它們都換成 24:00
+    for replace_time in ['23:59', '00:00']:
+        if replace_time in time_option_list:
+            time_option_list.remove(replace_time)
+            if not '24:00' in time_option_list:
+                time_option_list.append('24:00')
+            time_str_dict['24:00'] = time_str_dict[replace_time]
 
     time_option_list.sort()
 
@@ -364,7 +374,7 @@ def tree_map():
 
     # 日期與深度選項
     right_a, right_b = right.columns(2) 
-    if now.hour == 0 and now.minute < 35:
+    if now.hour == 0 and now.minute < first_min_show_today_pwd_treemap:
         yesterday = now - datetime.timedelta(days=1)
         input_date = right_a.date_input(label='請輸入日期', value=yesterday, min_value=datetime.date(2024,8,1), max_value=yesterday)
     else:
