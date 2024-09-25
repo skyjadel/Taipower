@@ -36,8 +36,14 @@ def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_
         time_column_type = 'DATE'
         data_path = power_data_path
 
+    file_list = [data_path + s for s in os.listdir(data_path) if '.csv' in s]
+
     conn = sqlite3.connect(sql_db_fn)
     cursor = conn.cursor()
+
+    if data_time == 'one_day':
+        sql_command = f'DROP TABLE IF EXISTS {table_name}'
+        cursor.execute(sql_command)
 
     sql_command = (
         f'CREATE TABLE IF NOT EXISTS {table_name}('
@@ -48,8 +54,6 @@ def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_
         f'{value_column_name} FLOAT);'
     )
     cursor.execute(sql_command)
-
-    file_list = [data_path + s for s in os.listdir(data_path) if '.csv' in s]
 
     for fn in file_list:
         if '_' in fn.split('/')[-1]:

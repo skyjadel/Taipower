@@ -5,6 +5,11 @@ from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from openai import RateLimitError
 
+import threading
+import logging
+import time
+import atexit
+
 import datetime
 import os
 
@@ -40,35 +45,89 @@ system_message = (
     '當被問到電廠發電量或發電方式發電量的排名問題，請將屬於每個電廠或發電方式的資料分別加總，再來排名 '
 )
 
+# 設置日誌
+logging.basicConfig(
+    filename='./chatbot.log',
+    level=logging.INFO,
+    format='%(asctime)s:%(levelname)s:%(message)s'
+)
 
 class SQL_Agent():
-    def __init__(self, sql_db_fn=sql_db_fn, verbose=True):
-        self.Agent = self._create_agent(sql_db_fn, verbose=verbose)
+    def __init__(self, sql_db_fn=sql_db_fn, api_key_path=api_key_path,
+                 model=model, system_message=system_message,
+                 verbose=True, check_interval=60):
+        
+        self.sql_db_fn = sql_db_fn
+        self.verbose = verbose
         self.system_message = system_message
+        self.api_key_path = api_key_path
+        self.model = model
+        self.check_interval = check_interval
+        self.last_mod_time = None
+        self.Agent = None
+        self.lock = threading.Lock()
+        self._refresh_agent()
 
-    def _create_agent(self, sql_db_fn, model=model, api_key_path=api_key_path, verbose=True):
-        engine = create_engine(f'sqlite:///{sql_db_fn}')
-        db = SQLDatabase(engine)
-        
-        with open(api_key_path, 'r') as f:
-            api_key = f.read()
-        
-        llm = ChatOpenAI(temperature=0, model=model, api_key=api_key)
-        
-        memory = ConversationBufferMemory(return_messages=True)
-        agent = create_sql_agent(llm=llm, db=db, verbose=verbose, handle_parsing_errors=True, memory=memory)
-        return agent
+        self.stop_event = threading.Event()
+        self.monitor_thread = threading.Thread(target=self._monitor_db_changes, daemon=True)
+        self.monitor_thread.start()
+        atexit.register(self.stop)
+
+    def _create_agent(self):
+        try:
+            engine = create_engine(f'sqlite:///{self.sql_db_fn}')
+            db = SQLDatabase(engine)
+            
+            with open(self.api_key_path, 'r') as f:
+                api_key = f.read().strip()
+            
+            llm = ChatOpenAI(temperature=0, model=self.model, api_key=api_key)
+            
+            memory = ConversationBufferMemory(return_messages=True)
+            agent = create_sql_agent(llm=llm, db=db, verbose=self.verbose, handle_parsing_errors=True, memory=memory)
+            logging.info('Agent 創建成功。')
+            return agent
+        except Exception as e:
+            logging.error(f'Agent 創建失敗: {e}')
+            return None
+    
+    def _refresh_agent(self):
+        with self.lock:
+            self.Agent = self._create_agent()
+            self.last_mod_time = os.path.getmtime(self.sql_db_fn)
+            logging.info(f"Agent 已刷新。資料庫最後修改時間：{self.last_mod_time}")
+
+    def _monitor_db_changes(self):
+        while not self.stop_event.is_set():
+            try:
+                current_mod_time = os.path.getmtime(self.sql_db_fn)
+                if self.last_mod_time is None or current_mod_time != self.last_mod_time:
+                    logging.info('資料庫已更新，重開 Agent。')
+                    self._refresh_agent()
+            except Exception as e:
+                logging.error(f"監控資料庫變更時發生錯誤：{e}")
+            time.sleep(self.check_interval)
 
     def invoke(self, input_message):
-        respond = self.Agent.invoke(f'User: "{input_message}", Time Now: {now}, instruction:{system_message}')
-        return respond['output']
+        with self.lock:
+            if self.Agent is None:
+                logging.error("Agent 尚未創建。")
+                return "聊天機器人初始化中，請稍後再試。"
+            respond = self.Agent.invoke(f'User: "{input_message}", Time Now: {now}, instruction:{system_message}')
+            return respond['output']
+    
+    def stop(self):
+        self.stop_event.set()
+        self.monitor_thread.join()
+        logging.info("Agent 停止。")
 
+global_agent = SQL_Agent()
 
-def respond_generator(input_message, agent=SQL_Agent()):
-    print('='*30)
-    print(datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S'))
+def respond_generator(input_message, agent_instance):
+    logging.info('='*30)
+    logging.info(datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S'))
     try:
-        return agent.invoke(input_message)
+        return agent_instance.invoke(input_message)
     except RateLimitError:
         return "已超過請求限制，請稍後再試。"
     except Exception as e:
