@@ -41,13 +41,15 @@ def save_model_metadata(file_path, model_xcols, model_hyperparameters_dict, opti
 # 為單一一種被預測值訓練模型
 def train_one_model(Y_feature, model_path, meta_path, data_path,
                     start_date='2023-08-01', end_date='2200-12-31', effective_station_list=effective_station_list,
-                    test_size=0.2, test_last_fold=True, apply_night_peak=False, remove_night_peak_samples=True,
+                    test_size=0.2, test_last_fold=True, apply_night_peak=False, remove_night_peak_samples=True, fit_wind_square=False,
                     latest_model_path=latest_model_path):
     with open(f'{meta_path}{Y_feature}/meta.json', 'r') as f:
         meta = json.load(f)
     X_feature_dict = meta['X_feature_dict']
     hyperparameters_dict = meta['hyperparameters_dict']
     weights = meta['weights']
+    if 'fit_wind_square' in meta.keys():
+        fit_wind_square = meta['fit_wind_square']
 
     normalization_factor = 0
     for weight in weights.values():
@@ -71,6 +73,7 @@ def train_one_model(Y_feature, model_path, meta_path, data_path,
                                end_date=end_date,
                                test_size=test_size,
                                test_last_fold=test_last_fold,
+                               fit_wind_square=fit_wind_square,
                                NP_X_feature_dict=NP_X_feature_dict,
                                NP_hyperparameters_dict=NP_hyperparameters_dict,
                                NP_weights=NP_weights,
@@ -87,15 +90,16 @@ def train_one_model(Y_feature, model_path, meta_path, data_path,
                                end_date=end_date, 
                                test_size=test_size,
                                test_last_fold=test_last_fold,
+                               fit_wind_square=fit_wind_square,
                                remove_night_peak_samples=remove_night_peak_samples)
     MODEL.train()
 
     MODEL.save_model(f'{model_path}{Y_feature}/')
-    save_model_metadata(f'{model_path}{Y_feature}/meta.json', X_feature_dict, hyperparameters_dict, weights)
+    #save_model_metadata(f'{model_path}{Y_feature}/meta.json', X_feature_dict, hyperparameters_dict, weights)
 
     if not latest_model_path is None:
         MODEL.save_model(f'{latest_model_path}{Y_feature}/')
-        save_model_metadata(f'{latest_model_path}{Y_feature}/meta.json', X_feature_dict, hyperparameters_dict, weights)
+        #save_model_metadata(f'{latest_model_path}{Y_feature}/meta.json', X_feature_dict, hyperparameters_dict, weights)
 
 
 # 訓練一組能夠預測多個特徵的模型

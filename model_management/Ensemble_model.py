@@ -72,6 +72,7 @@ class Ensemble_Model():
                  effective_station_list=effective_station_list,
                  data_path=None, start_date='2023-08-01', end_date='2024-09-30',
                  test_size=0.2, test_last_fold=False,
+                 fit_wind_square=False,
                  apply_night_peak=False, NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
                  remove_night_peak_samples=True,
                  is_NP_model=False):
@@ -117,6 +118,7 @@ class Ensemble_Model():
             self.data_path = data_path
             self.test_size = test_size
             self.test_last_fold = test_last_fold
+            self.fit_wind_square = fit_wind_square
 
             if self.predict_way == 'obs_to_pwd':
                 self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
@@ -286,13 +288,14 @@ class Ensemble_Model():
         output_dict = {
             'X_feature_dict':{},
             'hyperparameters_dict':{},
-            'weights':{}
+            'weights':{},
         }
         for model_label in self.model_labels:
             if self.weights[model_label] > 0.0005:
                 output_dict['X_feature_dict'][model_label] = self.X_feature_dict[model_label]
                 output_dict['hyperparameters_dict'][model_label] = self.hyperparameters_dict[model_label]
                 output_dict['weights'][model_label] = self.weights[model_label]
+        output_dict['fit_wind_square'] = self.fit_wind_square
     
         with open(file_path, 'w') as f:
             json.dump(output_dict, f)
@@ -304,6 +307,9 @@ class Ensemble_Model():
         self.X_feature_dict = meta['X_feature_dict']
         self.hyperparameters_dict = meta['hyperparameters_dict']
         self.weights = meta['weights']
+        self.fit_wind_square = False
+        if 'fit_wind_square' in meta.keys():
+            self.fit_wind_square = meta['fit_wind_square']
 
 
     def train_ML_model(self, model_label, X_train, Y_train):
@@ -339,6 +345,9 @@ class Ensemble_Model():
             X_train, Y_train, X_cols = self.get_XY(self.train_df, Y_feature=self.Y_feature, X_features=self.X_feature_dict[model_label])
             self.X_cols[model_label] = X_cols
 
+            if '風速' in self.Y_feature and self.fit_wind_square:
+                Y_train = Y_train**2
+
             if model_label == 'FCN':
                 self.train_DL_model(model_label, X_train, Y_train)
             else:
@@ -359,18 +368,27 @@ class Ensemble_Model():
 
     def predict(self, df, return_all_predictions=False, use_model='Ensemble'):
         Y_preds, weights = [], []
+        if return_all_predictions:
+            Y_predition_dict = {'date':list(df['日期'])}
+            if '站名' in df.columns:
+                Y_predition_dict['站名'] = list(df['站名'])
+
         if self.Y_feature == '太陽能' and self.apply_night_peak:
             night_peak = self.Night_Peak_Model.predict(df)
             day_peak = 1 - np.array(night_peak)
         if use_model == 'Ensemble':
             for model_label in self.model_labels:
                 Y_P = self.get_one_prediction(df, model_label)
+                if '風速' in self.Y_feature and self.fit_wind_square:
+                    Y_P = np.sqrt(np.abs(Y_P))
                 if self.Y_feature == '太陽能' and self.apply_night_peak:
                     if Y_P.shape == ():
                         Y_P = np.array(Y_P).reshape(-1,)
                     Y_P *= day_peak
                 Y_preds.append(Y_P)
                 weights.append(self.weights[model_label])
+                if return_all_predictions:
+                    Y_predition_dict[model_label] = Y_P
     
             final_prediction = Y_preds[0] * 0.0
             for i, Y_P in enumerate(Y_preds):
@@ -381,7 +399,7 @@ class Ensemble_Model():
                 final_prediction[np.where(final_prediction<0.5)] = 0
                 
             if return_all_predictions:
-                return final_prediction, Y_preds
+                return final_prediction, pd.DataFrame(Y_predition_dict)
             return final_prediction
             
         elif use_model in self.model_labels:

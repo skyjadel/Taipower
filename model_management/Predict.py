@@ -43,7 +43,6 @@ def convert_weather_df(weather_df):
 
 
 def convert_forecast_data(input_forecast_df):
-
     forecast_df = deepcopy(input_forecast_df)
     forecast_df['站名'] = [town_and_station[town] for town in forecast_df['鄉鎮']]
 
