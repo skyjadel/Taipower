@@ -82,6 +82,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     this_unit = units[y_feature]
     this_unit_factor = unit_factor[y_feature]
 
+    true_value_list = [float(eval_df[y_feature].iloc[i]) * this_unit_factor for i in range(len(eval_df) - 1)]
     err = [np.abs(float(eval_df[f'{y_feature}_預測'].iloc[i]) - float(eval_df[y_feature].iloc[i])) * this_unit_factor for i in range(len(eval_df) - 1)]
     avg_err = [np.mean(err[max(0,i-moving_average_days+1):i+1]) for i in range(len(err))]
 
@@ -184,6 +185,11 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     fifth_row[0].metric(
         label='真實數據歷史標準差',
         value=value_string(float(eval_df[f'{y_feature}7日內平均誤差'].iloc[-1]) * this_unit_factor, this_unit),
+    )
+
+    fifth_row[1].metric(
+        label=f'{moving_average_days}日內真實數據標準差',
+        value=value_string(np.std(true_value_list[-moving_average_days::]), this_unit)
     )
     # 備註
     left.text('台灣時間每日 00:30 更新前一日真實發電量資料與預測表現, 每日 19:30 更新次日發電量預測')
