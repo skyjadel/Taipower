@@ -1,13 +1,18 @@
+# 這個檔案負責創建與更新 RAG_SQL.db，以供對話機器人查詢
+# 主要被呼叫的函數為 main()
+
 import pandas as pd
 import sqlite3
 import os
 import numpy as np
+import datetime
 
 power_data_path = '../../historical/data/power/power_structure/'
 peak_data_path = '../../historical/data/prediction/'
 sql_db_fn = power_data_path + 'RAG_sql.db'
 
 
+# 轉換電廠名字，讓機器人容易識別
 def arrange_power_plant_name(plant):
     if '大林電廠' in plant:
         return '大林電廠'
@@ -22,7 +27,9 @@ def arrange_power_plant_name(plant):
     return plant
 
 
+# 更新即時與歷史發電結構資料表
 def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_path, data_time='many_days'):
+    # 依照 date_time 來設定參數
     if data_time == 'one_day':
         table_name = 'real_time_power_generation'
         value_column_name = 'realtime_generation_MW'
@@ -41,10 +48,7 @@ def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_
     conn = sqlite3.connect(sql_db_fn)
     cursor = conn.cursor()
 
-    if data_time == 'one_day':
-        sql_command = f'DROP TABLE IF EXISTS {table_name}'
-        cursor.execute(sql_command)
-
+    # 如果資料表不存在，就創建資料表
     sql_command = (
         f'CREATE TABLE IF NOT EXISTS {table_name}('
         f'{time_column_name} {time_column_type},'
@@ -55,12 +59,34 @@ def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_
     )
     cursor.execute(sql_command)
 
-    for fn in file_list:
-        if '_' in fn.split('/')[-1]:
+    # 在取一天之內不同時間的數據的時候 (datetime='one_day')
+    # 如果 csv 檔裡面的最新時間比 SQL 裡面的最新時間要舊，表示 csv 檔已經是新一天的資料
+    # 若是如此，就把 SQL 裡面 real_time_power_generation 資料表裡的資料清空，準備存新一天的資料
+    if data_time == 'one_day':
+        datetime_str_list = []
+        for fn in file_list:
             datetime_str = fn.split('/')[-1].split('.')[0].split('_')[-1].replace('-', ':') + ':00'
+            datetime_str_list.append(datetime_str)
+        
+        time_list = [datetime.datetime.strptime(s, '%H:%M:%S').time() for s in datetime_str_list]
+        max_csv_time = max(time_list)
+
+        sql_command = 'SELECT MAX(time) FROM real_time_power_generation'
+        cursor.execute(sql_command)
+        result = cursor.fetchall()
+        max_sql_time = datetime.datetime.strptime(result[0][0], '%H:%M:%S').time()
+
+        # 如果 SQL 資料表的最新時間大於 csv 檔的最新時間，則清空 SQL 資料表
+        if max_sql_time > max_csv_time:
+            sql_command = f'DELETE FROM {table_name}'
+            cursor.execute(sql_command)
+    
+    # Iterate over files in data path, extract data, then insert them into SQL table.
+    for i, fn in enumerate(file_list):
+        if data_time == 'one_day':
+            datetime_str = datetime_str_list[i]
         else:
             datetime_str = fn.split('/')[-1].split('.')[0]
-
 
         df = pd.read_csv(fn)
 
@@ -73,6 +99,8 @@ def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_
 
                 plant = arrange_power_plant_name(plant)
                 
+                # 如果 SQL 裡面有時間與機組重複的資料，則檢查數值，若不同則更新
+                # 如果沒有重複的 SQL 資料，則在 SQL 中新增一行
                 sql_command = f"SELECT * FROM {table_name} WHERE {time_column_name} = '{datetime_str}' AND unit = '{unit}';"
                 cursor.execute(sql_command)
                 output = cursor.fetchall()
@@ -93,7 +121,7 @@ def update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_
 
 
 def update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='prediction'):
-
+    # 依照 type 來設定參數
     if type == 'prediction':
         csv_filename = peak_data_path + 'power.csv'
         table_name = 'peak_load_prediction'
@@ -110,6 +138,7 @@ def update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='p
     conn = sqlite3.connect(sql_db_fn)
     cursor = conn.cursor()
 
+    # 如果資料表不存在，就創建資料表
     sql_command = (
         f'CREATE TABLE IF NOT EXISTS {table_name}('
         'date DATE,'
@@ -122,6 +151,7 @@ def update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='p
 
     df = pd.read_csv(csv_filename)
 
+    # 將 DataFrame 當中的每一行存進資料表
     for i in range(len(df)):
         if '/' in df['日期'].iloc[i] or '-' in df['日期'].iloc[i]:
             date_str = df['日期'].iloc[i].replace('/', '-')
@@ -137,6 +167,8 @@ def update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='p
             cursor.execute(sql_command)
             output = cursor.fetchall()
 
+            # 如果 SQL 裡面有日期重複的資料就更新數值
+            # 如果沒有重複的 SQL 資料，就在 SQL 中新增一行
             if len(output) >= 1:
                 if type == 'prediction':
                     sql_command = (
@@ -167,6 +199,7 @@ def update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='p
 
 
 def main(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, power_data_path=power_data_path):
+    # 更新 SQL 資料庫的四張表
     update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_path, data_time='many_days')
     update_power_structure_data(sql_db_fn=sql_db_fn, power_data_path=power_data_path, data_time='one_day')
     update_peak_data(sql_db_fn=sql_db_fn, peak_data_path=peak_data_path, type='prediction')
