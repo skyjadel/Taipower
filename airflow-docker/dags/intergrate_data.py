@@ -24,7 +24,7 @@ dag = DAG(
     'i_dag',
     default_args=default_args,
     description='Run integrating_realtime_data.main() everyday',
-    schedule_interval='20 0,19 * * *',
+    schedule_interval='12 0,19 * * *',
     catchup=False,
 )
 
