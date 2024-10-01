@@ -183,6 +183,14 @@ def read_historical_forecast_data(data_fn, start_date, end_date, transform_colum
     return forecast_df
 
 
+def holiday_identify(date):
+    if date in holidays:
+        return 1
+    if date in typhoon_leave.keys():
+        return typhoon_leave[date]
+    return 0
+
+
 # 加入日期數字、假日、白天長度等可以由日期決定的資訊
 def add_date_related_information(df):
     # 日期數字化
@@ -194,7 +202,7 @@ def add_date_related_information(df):
     df['日期數字'] = date_num            
 
     # 加入假日與工作日變量
-    df['假日'] = [1 if d in holidays else 0 for d in df['日期']]
+    df['假日'] = [holiday_identify(d) for d in df['日期']]
     df['週六'] = [1 if d.weekday() == 5 else 0 for d in df['日期']]
     df['週日'] = [1 if d.weekday() == 6 else 0 for d in df['日期']]
     df['補班'] = [1 if d.weekday() in adjusted_work_days else 0 for d in df['日期']]

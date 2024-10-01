@@ -32,12 +32,18 @@ holidays = [
     datetime.datetime(2024, 4, 5),
     datetime.datetime(2024, 5, 1),
     datetime.datetime(2024, 6, 10),
-    datetime.datetime(2024, 7, 24),
     datetime.datetime(2024, 7, 25),
     datetime.datetime(2024, 9, 17),
     datetime.datetime(2024, 10, 10),
     datetime.datetime(2025, 1, 1),
 ]
+
+typhoon_leave = {
+    datetime.datetime(2024, 7, 24): 1,
+    datetime.datetime(2024, 7, 25): 1,
+    datetime.datetime(2024, 10, 1): 0.2,
+    datetime.datetime(2024, 10, 2): 1,
+}
 
 #補班日
 adjusted_work_days = [
