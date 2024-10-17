@@ -25,7 +25,7 @@ now += (datetime.timedelta(hours=8) - now.astimezone().tzinfo.utcoffset(None))
 
 first_hour_show_today_peak = 12
 first_min_show_lastday_eval = 35
-first_min_show_today_pwd_treemap = 15
+first_min_show_today_pwd_treemap = 25
 
 #   Define power units
 units = {
@@ -93,8 +93,8 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     left.markdown('#### 最新預測')
 
     # 第一行：預測值
-    first_row = list(left.columns(4))
-    for j in range(4):
+    first_row = list(left.columns(3))
+    for j in range(3):
         first_row[j].metric(
             label=f"{power_pred_df['日期'].iloc[-j-1]} 預測",
             value=value_string(power_pred_df[y_feature].iloc[-j-1] * this_unit_factor, this_unit), 
@@ -103,7 +103,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
     left.markdown('#### 近日預測表現')
 
     # 第二行：實際觀測值
-    second_row = list(left.columns(4))
+    second_row = list(left.columns(3))
     # 在 12 點後顯示今天的推定數值
     if now.hour >= first_hour_show_today_peak:
         today_str = datetime.datetime.strftime(now, '%Y-%m-%d')
@@ -118,14 +118,14 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
             value=value_string(peak_today[y_feature][0] * this_unit_factor, this_unit)
         )
     # 過去的實際值
-    for i, j in enumerate(range(second_row_first_col, 4)):
+    for i, j in enumerate(range(second_row_first_col, 3)):
         second_row[j].metric(
             label=f"{eval_df['日期'].iloc[-i-2]} 真實數據",
             value=value_string(float(eval_df[y_feature].iloc[-i-2]) * this_unit_factor, this_unit),
         )
 
     # 第三行：單日誤差
-    third_row = list(left.columns(4))
+    third_row = list(left.columns(3))
     # 在 12 點後顯示今天的推定誤差
     if now.hour >= first_hour_show_today_peak:
         this_err = np.abs(peak_today[y_feature][0] - power_pred_df[y_feature].iloc[-second_row_first_col]) * this_unit_factor
@@ -146,7 +146,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
             delta_color='inverse',
         )
     # 過去的誤差
-    for i, j in enumerate(range(second_row_first_col, 4)):
+    for i, j in enumerate(range(second_row_first_col, 3)):
         this_err = err[-i-1]
         last_err = err[-i-2]
         third_row[j].metric(
@@ -157,7 +157,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
         )
 
     # 第四行：移動平均誤差
-    forth_row = list(left.columns(4))
+    forth_row = list(left.columns(3))
     # 12 點以後顯示當日到目前為止的尖峰時間
     if now.hour >= first_hour_show_today_peak:
         forth_row[second_row_first_col-1].metric(
@@ -170,7 +170,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
             value=peak_today['尖峰時間'][0].split(' ')[1]
         )
     # 過去的移動平均誤差
-    for i, j in enumerate(range(second_row_first_col, 4)):
+    for i, j in enumerate(range(second_row_first_col, 3)):
         this_val = avg_err[-i-1]
         last_val = avg_err[-i-2]
         forth_row[j].metric(
@@ -181,7 +181,7 @@ def one_tab(y_feature, second_row_first_col, moving_average_days=moving_average_
         )
 
     # 第五行：歷史標準差
-    fifth_row = list(left.columns(4))
+    fifth_row = list(left.columns(3))
     fifth_row[0].metric(
         label='真實數據歷史標準差',
         value=value_string(float(eval_df[f'{y_feature}7日內平均誤差'].iloc[-1]) * this_unit_factor, this_unit),
