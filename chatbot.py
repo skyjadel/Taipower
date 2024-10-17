@@ -33,7 +33,7 @@ system_message = (
     'peak_load_truth 裡面的欄位是 date, wind_energy_MW, solar_energy_MW, total_MW, wind_energy_error_MW, solar_energy_error_MW, total_error_MW, '
     '分別代表日期、風力發電實際值、太陽能發電實際值、尖峰負載實際值，風力發電預測誤差、太陽能發電預測誤差、尖峰負載預測誤差，數值單位都是 MW '
     '請將回應數字四捨五入到小數點以下第二位 '
-    '問題中有現在或即時，請先找到在 real_time_power_generation 裡面最晚的時間，再去找這個時間的資料'
+    '問題中有現在或即時，請先找到在 real_time_power_generation 裡面最晚的時間，再去找這個時間的資料 '
     '如果在資料庫中找不到完全一樣的文字資料，請找最接近的 '
     '請使用使用者提問的語言回答 '
     '當被問到某種發電方式或某個電廠的發電量，請把符合的值加總起來 '
@@ -41,7 +41,7 @@ system_message = (
     '中文與英數符號之間要有空格 '
     'Gas 在表中的寫法是 LNG '
     '中文的「尖峰」對應到 peak_load_predition, peak_load_truth 兩張表 '
-    '如果問到預測、預計，請到 peak_load_predition找資料'
+    '如果問到預測、預計，請到 peak_load_predition找資料 '
     '當被問到電廠發電量或發電方式發電量的排名問題，請將屬於每個電廠或發電方式的資料分別加總，再來排名 '
 )
 
