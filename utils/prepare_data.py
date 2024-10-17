@@ -16,6 +16,8 @@ import utils.power_generation_types as power_types #各發電機組屬於哪種�
 from utils.holidays import *
 from utils.station_info import effective_station_list as station_names #這邊的氣象站列表只會影響 氣象觀測-電力資訊 的那張表
 
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+
 # 日期數字化的第 0 天
 FIRST_DATE_STR = '2023-01-01'
 
@@ -159,12 +161,23 @@ def read_historical_weather_observation_data(data_fn, start_date=start_date, end
     return convert_weather_obseravtion_data(big_df, start_date=start_date, end_date=end_date, transform_columns=transform_columns)
 
     
-def read_historical_forecast_data(data_fn, start_date, end_date, transform_columns=False):
+def read_historical_forecast_data(data_fn, start_date=start_date, end_date=end_date, transform_columns=False):
     forecast_df = pd.read_csv(data_fn)
     forecast_df['日期'] = pd.to_datetime(forecast_df['日期'])
     forecast_df = designate_date_range(forecast_df, '日期', start_date, end_date)
+
+    labelencoder = LabelEncoder()
+    forecast_df['town'] = labelencoder.fit_transform(forecast_df['鄉鎮'])
+    onehotencoder = OneHotEncoder()
+    data_str_ohe=onehotencoder.fit_transform(forecast_df['town'].to_numpy().reshape(-1,1)).toarray()
+    town_onehot_df = pd.DataFrame(data_str_ohe)
+    column_mapping = {col: 'Town_' + labelencoder.inverse_transform([col])[0] for col in town_onehot_df.columns}
+    town_onehot_df.rename(column_mapping, axis=1, inplace=True)
+    forecast_df = pd.concat([forecast_df, town_onehot_df], axis=1)
+    forecast_df.drop('town', axis=1, inplace=True)
     
     for hr in range(0, 24, 3):
+        forecast_df[f'風速超過上限_{hr}'] = [1 if s >= 11 else 0 for s in forecast_df[f'風速_{hr}']]
         forecast_df = polar_to_cartesian_coord(forecast_df, [f'風速_{hr}', f'風向_{hr}'], [f'東西風_{hr}', f'南北風_{hr}'])
 
     if transform_columns:
