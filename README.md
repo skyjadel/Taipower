@@ -36,7 +36,7 @@ Fully-Connected Neural Network
 歷史電力資料路徑為 ./historical/data/power/power_deneration_data.csv  
 歷史預測資料為 ./historical/data/prediction/  
 
-以下五個資料夾為我自己寫的套件  
+以下五個資料夾為自定義套件，本專案的主要引擎
 ./crawler  
 負責將即時天氣預報、天氣觀測、電力資訊利用爬蟲抓取下來，並存到 realtime.db 資料庫中  
 ./data_integration  
