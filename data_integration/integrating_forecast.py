@@ -40,6 +40,7 @@ weather_condition_encoding = {'晴': 0,
 weather_condition_list = [k for k in weather_condition_encoding.keys()]
 town_list = [v for v in station_and_town.values()]
 
+
 def retrieve_forecast_from_sql(town, sql_db_path, start_date=None, end_date=None):
     conn = sqlite3.connect(sql_db_path)
     cursor = conn.cursor()
@@ -80,6 +81,7 @@ def retrieve_forecast_from_sql(town, sql_db_path, start_date=None, end_date=None
     conn.close()
     return pd.DataFrame(forecast_dict)
 
+
 def retrieve_update_times_from_sql(sql_db_path):
     conn = sqlite3.connect(sql_db_path)
     cursor = conn.cursor()
@@ -105,6 +107,7 @@ def retrieve_update_times_from_sql(sql_db_path):
         update_times[k].sort()
     return update_times
 
+
 def convert_to_timestamp(input_time):
     if str(type(input_time)) ==  "<class 'pandas._libs.tslibs.timestamps.Timestamp'>":
         return input_time
@@ -112,7 +115,8 @@ def convert_to_timestamp(input_time):
         return pd.Timestamp(input_time)
     if type(input_time) == str:
         return pd.Timestamp(strptime(input_time, '%Y/%m/%d %H:%M:%S'))
-    
+
+
 def sample_forecast_at_given_time(forecast_df, sample_time):
     sample_time = convert_to_timestamp(sample_time)
 
@@ -128,6 +132,7 @@ def sample_forecast_at_given_time(forecast_df, sample_time):
     forecast_df = forecast_df[forecast_df['預測時間'] == newest_time]
     return forecast_df
 
+
 def sample_forecast_with_given_deltaday(forecast_df, deltaday=1):
     delta_timestamp = pd.Timedelta(days=deltaday)
 
@@ -137,6 +142,25 @@ def sample_forecast_with_given_deltaday(forecast_df, deltaday=1):
     forecast_df.drop('day_diff', axis=1, inplace=True)
     forecast_df.reset_index(drop=True, inplace=True)
     return forecast_df
+
+
+def assign_dict_values(this_row, this_dict, hour, col_name):
+    if col_name in ['鄉鎮', '目標時間', 'Time']:
+        return this_dict
+    
+    if col_name == '天氣狀況':
+        for con in weather_condition_list:
+            this_key = f'{con}_{hour}'
+            this_dict[this_key] = int(con == this_row[col_name].iloc[0])
+        return this_dict
+    
+    this_key = f'{col_name}_{hour}'
+    if col_name == '風向':
+        this_dict[this_key] = wind_direction_dict[this_row[col_name].iloc[0]]
+        return this_dict
+    this_dict[this_key] = this_row[col_name].iloc[0]
+    return this_dict
+
 
 def encode_oneday_forecast_data(forecast_df):
     this_town = forecast_df['鄉鎮'].iloc[0]
@@ -148,18 +172,10 @@ def encode_oneday_forecast_data(forecast_df):
     for h in range(0, 24, 3):
         this_row = this_df[this_df['Time']==h]
         for col in this_row.columns:
-            if not col in ['鄉鎮', '目標時間', 'Time']:
-                if col == '天氣狀況':
-                    for con in weather_condition_list:
-                        this_key = f'{con}_{h}'
-                        new_dict[this_key] = int(con == this_row[col].iloc[0])
-                elif col == '風向':
-                    this_key = f'{col}_{h}'
-                    new_dict[this_key] = wind_direction_dict[this_row[col].iloc[0]]
-                else:
-                    this_key = f'{col}_{h}'
-                    new_dict[this_key] = this_row[col].iloc[0]
+            new_dict = assign_dict_values(this_row, new_dict, h, col)
+
     return pd.DataFrame([new_dict])
+
 
 def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, historical_df=None,
                                     sample_hr=lastest_forecast_sample_hr, least_integrate_days=5):
@@ -189,7 +205,6 @@ def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, historica
     ran_dates = []
     df_list = []
     if not historical_df is None:
-        #this_historical_df['日期'] = [datetime.datetime.strptime(d, '%Y-%m-%d') for d in this_historical_df['日期']]
         df_list.append(this_historical_df)
 
     for d, ts in forecast_times.items():
@@ -227,7 +242,6 @@ def main(sql_db_fn, historical_data_path, save_file=True, least_integrate_days=5
     # 將 SQL 資料庫中的預報資料整合到歷史預報資料 csv 檔中
     forecast_times = retrieve_update_times_from_sql(sql_db_fn)
     historical_df = pd.read_csv(historical_data_path+'weather/finalized/weather_forecast.csv')
-    #print(forecast_times)
     df = arrange_forecast_for_towns(town_list, sql_db_fn, historical_df=historical_df,
                                     forecast_times=forecast_times, least_integrate_days=least_integrate_days)
     
@@ -237,8 +251,8 @@ def main(sql_db_fn, historical_data_path, save_file=True, least_integrate_days=5
     if save_file:
         df.to_csv(historical_data_path+'weather/finalized/weather_forecast.csv', encoding='utf-8-sig', index=False)
         return None
+    print(df)
     
-
 
 if __name__ == '__main__':
     print('Start!')
