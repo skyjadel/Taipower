@@ -17,8 +17,8 @@ default_args = {
 dag = DAG(
     'w_dag',
     default_args=default_args,
-    description='Run w.py main() every 6 hours',
-    schedule_interval='5 1,7,13,19 * * *',
+    description='Run w.py main() every hour',
+    schedule_interval='5 * * * *',
     catchup=False,
 )
 
