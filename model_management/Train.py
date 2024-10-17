@@ -117,7 +117,9 @@ def train_all_models(model_path, meta_path, data_path, effective_station_list=ef
                         start_date=start_date, end_date=end_date)
 
 
-def main_train(params=params_dict, preserved_days=0, train_model_main_path=train_model_main_path,
+def main_train(params=params_dict, preserved_days=0,
+               train_model_main_path=train_model_main_path,
+               suffix='',
                effective_station_list=effective_station_list,
                apply_night_peak=False, remove_night_peak_samples=True,
                latest_model_path=None):
@@ -145,7 +147,7 @@ def main_train(params=params_dict, preserved_days=0, train_model_main_path=train
         model_path += '_NP'
     if not remove_night_peak_samples:
         model_path += '_PNPS'
-    model_path += '/'
+    model_path += f'{suffix}/'
     os.makedirs(model_path, exist_ok=True)
     print(model_path)
 
