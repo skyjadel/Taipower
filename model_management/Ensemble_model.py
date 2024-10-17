@@ -1,25 +1,11 @@
 import numpy as np
 import pandas as pd
-import datetime
 import os
 import joblib
 import json
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-
-from sklearn.linear_model import LinearRegression
-from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.svm import SVR, NuSVR
-
-from sklearn.svm import SVC, NuSVC
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
-
 from sklearn.metrics import f1_score
 
 import warnings
@@ -33,7 +19,8 @@ MAE = Array_Metrics.mae
 R2_score = Array_Metrics.r2
 
 from utils.prepare_data import prepare_data, prepare_forecast_observation_df
-from utils.station_info import effective_station_list
+from utils.station_info import effective_station_list, town_and_station
+from utils.model_label_dict import model_class_dict
 
 
 class Ensemble_Model():
@@ -192,19 +179,17 @@ class Ensemble_Model():
         # 定義 X 使用的欄位名
         for x_f in X_features:
             if self.predict_way == 'obs_to_pwd':
-                if x_f in data_df.columns:
-                    X_cols.append(x_f)
-                    continue
-                for station in station_list:
-                    this_col = f'{x_f}_{station}'
-                    if this_col in data_df.columns:
-                        X_cols.append(this_col)
-
+                possible_col_names = [f'{x_f}_{station}' for station in station_list]
             elif self.predict_way == 'fore_to_obs':
-                for hr in range(0, 24, 3):
-                    this_col = f'{x_f}預報_{hr}'
-                    if this_col in data_df.columns:
-                        X_cols.append(this_col)
+                possible_col_names = [f'{x_f}預報_{hr}' for hr in range(0, 24, 3)]
+                if x_f == 'Town':
+                    town_list = [town for town in town_and_station.keys() if town_and_station[town] in self.station_list]
+                    possible_col_names += [f'{x_f}預報_{town}' for town in town_list]
+            add_col_list = [col for col in possible_col_names if col in data_df.columns]
+            if len(add_col_list) == 0 and x_f in data_df.columns:
+                X_cols.append(x_f)
+            else:
+                X_cols += add_col_list
     
         Xs = np.array(data_df[X_cols])
         Ys = np.array(data_df[Y_feature])
@@ -236,52 +221,22 @@ class Ensemble_Model():
 
 
     def assign_model(self, model_label):
-        if self.mode == 'classifier':
-            if model_label == 'RandomForest':
-                model = RandomForestClassifier(**self.hyperparameters_dict[model_label])
-            elif model_label == 'XGBoost':
-                model = XGBClassifier(**self.hyperparameters_dict[model_label])
-            elif model_label == 'LightGBM':
-                model = LGBMClassifier(force_col_wise=True, verbose=-1,
-                                       **self.hyperparameters_dict[model_label])
-            elif model_label == 'SVC':
-                model = SVC(**self.hyperparameters_dict[model_label])
-            elif model_label == 'NuSVC':
-                model = NuSVC(**self.hyperparameters_dict[model_label])
-            elif model_label == 'LogisticRegression':
-                model = LogisticRegression(**self.hyperparameters_dict[model_label])
-            elif model_label == 'FCN':
-                input_f = self.calculate_input_x_feature_num(model_label)
-                output_f = 1
-                feature_counts = [16, 16, 16, 8]
-                model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts,
-                                       mode='classifier', **self.hyperparameters_dict[model_label])
-            else:
-                raise ValueError(f'model_label "{model_label}" is not in preset list.')
-            return model
-        if self.mode == 'regressor':
-            if model_label == 'LinearRegression':
-                model = LinearRegression()
-            elif model_label == 'RandomForest':
-                model = RandomForestRegressor(**self.hyperparameters_dict[model_label])
-            elif model_label == 'XGBoost':
-                model = XGBRegressor(**self.hyperparameters_dict[model_label])
-            elif model_label == 'LightGBM':
-                model = LGBMRegressor(force_col_wise=True, verbose=-1,
-                                      **self.hyperparameters_dict[model_label])
-            elif model_label == 'SVR':
-                model = SVR(**self.hyperparameters_dict[model_label])
-            elif model_label == 'NuSVR':
-                model = NuSVR(**self.hyperparameters_dict[model_label])
-            elif model_label == 'FCN':
-                input_f = self.calculate_input_x_feature_num(model_label)
-                output_f = 1
-                feature_counts = [16, 16, 16, 8]
-                model = self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts, 
-                                       **self.hyperparameters_dict[model_label])
-            else:
-                raise ValueError(f'model_label "{model_label}" is not in preset list.')
-            return model
+        # 如果模型是 Fully connected network, 就需要計算輸入特徵數量
+        if model_label == 'FCN':
+            input_f = self.calculate_input_x_feature_num(model_label)
+            output_f = 1
+            feature_counts = [16, 16, 16, 8]
+            return self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts,
+                                    mode=self.mode, **self.hyperparameters_dict[model_label])
+        # 如果模型是 LightGBM, 加入參數阻止警告訊息出現
+        if model_label == 'LightGBM':
+            return model_class_dict[self.mode][model_label](force_col_wise=True, verbose=-1,
+                                                             **self.hyperparameters_dict[model_label])
+        # 其他狀況，如果 model_label 與 self.mode 的組合在字典裡找得到對應，則回傳對應模型，否則回報錯誤
+        if self.mode in model_class_dict.keys():
+            if model_label in model_class_dict[self.mode].keys():
+                return model_class_dict[self.mode][model_label](**self.hyperparameters_dict[model_label])
+        raise ValueError(f'model_label "{model_label}" is not in preset list.')
 
 
     def save_model_metadata(self, file_path):
@@ -359,11 +314,18 @@ class Ensemble_Model():
             self.Night_Peak_Model.train()
 
 
-    def get_one_prediction(self, df, model_label):
+    def get_one_prediction(self, df, model_label, day_peak=1):
         X = np.array(df[self.X_cols[model_label]])
         X = self.fill_nan(X)
         X = self.scalers[model_label].transform(X)
-        return self.models[model_label].predict(X)
+        Y_P = self.models[model_label].predict(X)
+        if '風速' in self.Y_feature and self.fit_wind_square:
+            Y_P = np.sqrt(np.abs(Y_P))
+        if self.Y_feature == '太陽能' and self.apply_night_peak:
+            if Y_P.shape == ():
+                Y_P = np.array(Y_P).reshape(-1,)
+            Y_P *= day_peak
+        return Y_P
 
 
     def predict(self, df, return_all_predictions=False, use_model='Ensemble'):
@@ -372,19 +334,14 @@ class Ensemble_Model():
             Y_predition_dict = {'date':list(df['日期'])}
             if '站名' in df.columns:
                 Y_predition_dict['站名'] = list(df['站名'])
-
+        day_peak = 1
         if self.Y_feature == '太陽能' and self.apply_night_peak:
             night_peak = self.Night_Peak_Model.predict(df)
-            day_peak = 1 - np.array(night_peak)
+            day_peak -= np.array(night_peak)
+        # 若 use_model 為 Ensemble, 則使用預存的權重進行集成預測
         if use_model == 'Ensemble':
             for model_label in self.model_labels:
-                Y_P = self.get_one_prediction(df, model_label)
-                if '風速' in self.Y_feature and self.fit_wind_square:
-                    Y_P = np.sqrt(np.abs(Y_P))
-                if self.Y_feature == '太陽能' and self.apply_night_peak:
-                    if Y_P.shape == ():
-                        Y_P = np.array(Y_P).reshape(-1,)
-                    Y_P *= day_peak
+                Y_P = self.get_one_prediction(df, model_label, day_peak)    
                 Y_preds.append(Y_P)
                 weights.append(self.weights[model_label])
                 if return_all_predictions:
@@ -401,11 +358,15 @@ class Ensemble_Model():
             if return_all_predictions:
                 return final_prediction, pd.DataFrame(Y_predition_dict)
             return final_prediction
-            
-        elif use_model in self.model_labels:
-            return self.get_one_prediction(df, use_model)
-        else:
-            raise ValueError(f'The string "{use_model}" is not included in the model labels. Must choose from {list(self.model_labels)} or "Ensemble".')
+        # 若 use_model 為 self.model_labels 的其中之一, 則使用該模型單獨預測
+        if use_model in self.model_labels:
+            final_prediction = self.get_one_prediction(df, use_model)
+            if self.mode == 'classifier':
+                final_prediction[np.where(final_prediction>=0.5)] = 1
+                final_prediction[np.where(final_prediction<0.5)] = 0
+            return final_prediction
+        # 若 use_model 不屬於以上狀況，則輸出錯誤訊息
+        raise ValueError(f'The string "{use_model}" is not included in the model labels. Must choose from {list(self.model_labels)} or "Ensemble".')
 
 
     def varify(self, return_var_df=False, var_df=None):
