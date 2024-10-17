@@ -9,7 +9,7 @@ from pandas import DataFrame
 from model_management.Ensemble_model import Ensemble_Model
 from utils.sun_light import calculate_all_day_sunlight
 from utils.holidays import *
-from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data, add_date_related_information
+from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data, add_date_related_information, read_historical_forecast_data
 from utils.convert_wind_info import polar_to_cartesian_coord
 from utils.station_info import *
 
@@ -45,9 +45,6 @@ def convert_weather_df(weather_df):
 def convert_forecast_data(input_forecast_df):
     forecast_df = deepcopy(input_forecast_df)
     forecast_df['站名'] = [town_and_station[town] for town in forecast_df['鄉鎮']]
-
-    for hr in range(0, 24, 3):
-        forecast_df = polar_to_cartesian_coord(forecast_df, [f'風速_{hr}', f'風向_{hr}'], [f'東西風_{hr}', f'南北風_{hr}'])
     
     column_map = {}
     for col in forecast_df.columns:
@@ -57,7 +54,9 @@ def convert_forecast_data(input_forecast_df):
     return forecast_df
 
 
-def predict_weather_features(model_path: str, input_forecast_df: DataFrame):
+def predict_weather_features(model_path: str,
+                             input_forecast_df: DataFrame,
+                             wind_speed_naive: bool = False):
     forecast_df = convert_forecast_data(input_forecast_df) 
     output_df = deepcopy(forecast_df[['日期', '站名']])
     
@@ -67,9 +66,24 @@ def predict_weather_features(model_path: str, input_forecast_df: DataFrame):
         '午後平均風速', '下午平均風速', '傍晚平均風速',
         ]
     
+    wind_speed_naive_col_dict = {
+        '風速': {'cols': [f'風速預報_{hr}' for hr in range(0, 24, 3)], 'func': 'mean'},
+        '午後平均風速': {'cols': [f'風速預報_{hr}' for hr in range(12, 18, 3)], 'func': 'mean'},
+        '下午平均風速': {'cols': [f'風速預報_{hr}' for hr in range(15, 21, 3)], 'func': 'mean'},
+        '傍晚平均風速': {'cols': [f'風速預報_{hr}' for hr in range(18, 24, 3)], 'func': 'mean'},
+    }
+    
     for Y_feature in Y_feature_list:
-        MODEL = Ensemble_Model(Y_feature, model_path)
-        Y_pred = MODEL.predict(forecast_df)
+        if wind_speed_naive and Y_feature in wind_speed_naive_col_dict.keys():
+            if wind_speed_naive_col_dict[Y_feature]['func'] == 'mean':
+                Y_pred = np.mean(forecast_df[wind_speed_naive_col_dict[Y_feature]['cols']], axis=1)
+            elif wind_speed_naive_col_dict[Y_feature]['func'] == 'max':
+                Y_pred = np.max(forecast_df[wind_speed_naive_col_dict[Y_feature]['cols']], axis=1)
+            elif wind_speed_naive_col_dict[Y_feature]['func'] == 'min':
+                Y_pred = np.min(forecast_df[wind_speed_naive_col_dict[Y_feature]['cols']], axis=1)
+        else:
+            MODEL = Ensemble_Model(Y_feature, model_path)
+            Y_pred = MODEL.predict(forecast_df)
         output_df.loc[:,Y_feature] = Y_pred
 
     sun_flux = []
@@ -128,7 +142,8 @@ def main_predict(data_path: str = data_path,
                  save_prediction: bool = True,
                  update_prediction: bool = False,
                  avoid_training_set: bool = True,
-                 predict_weather_only: bool = False,):
+                 predict_weather_only: bool = False,
+                 wind_speed_naive: bool = False,):
     '''主要的預測函數，會產生並儲存天氣與電力預測結果
     Arg:
         data_path (str, optional): 預測用資料路徑
@@ -144,8 +159,7 @@ def main_predict(data_path: str = data_path,
     os.makedirs(historical_pred_path, exist_ok=True)
     
     # 讀取預報資料
-    forecast_df = pd.read_csv(data_path + 'weather/finalized/weather_forecast.csv')
-    forecast_df['日期'] = pd.to_datetime(forecast_df['日期'])
+    forecast_df = read_historical_forecast_data(data_path + 'weather/finalized/weather_forecast.csv')
     
     # 決定從哪一天開始預測
     latest_date = max(forecast_df['日期'])
@@ -156,11 +170,14 @@ def main_predict(data_path: str = data_path,
         model_training_df['日期'] = pd.to_datetime(model_training_df['日期'])
         model_last_date = max(model_training_df['日期'])
         first_date = max(model_last_date + datetime.timedelta(days=1), first_date)
-        
     forecast_df = forecast_df[forecast_df['日期'] >= first_date]
 
+    # 定義當新舊資料重複時要留哪一個
+    keep = 'first' if update_prediction else 'last'
+
     # 完成預測
-    wDF = predict_weather_features(model_path, input_forecast_df=forecast_df)
+    wDF = predict_weather_features(model_path, input_forecast_df=forecast_df,
+                                   wind_speed_naive=wind_speed_naive)
     if predict_weather_only:
         return wDF
     pwd_DF = predict_power_features(model_path, wDF)
@@ -174,10 +191,7 @@ def main_predict(data_path: str = data_path,
         old_weather_pred_df['日期'] = pd.to_datetime(old_weather_pred_df['日期']).dt.date
         new_weather_pred_df = wDF
         weather_pred_df = pd.concat([new_weather_pred_df, old_weather_pred_df], axis=0)
-        if update_prediction:
-            weather_pred_df = weather_pred_df.drop_duplicates(subset=['日期', '站名'], keep='first')
-        else:
-            weather_pred_df = weather_pred_df.drop_duplicates(subset=['日期', '站名'], keep='last')
+        weather_pred_df = weather_pred_df.drop_duplicates(subset=['日期', '站名'], keep=keep)
         weather_pred_df = weather_pred_df.sort_values('日期').reset_index(drop=True)
         if save_prediction:
             weather_pred_df.to_csv(weather_prediction_filename, index=False, encoding='utf-8-sig')
@@ -193,10 +207,7 @@ def main_predict(data_path: str = data_path,
         old_power_pred_df = pd.read_csv(power_prediction_filename)
         old_power_pred_df['日期'] = pd.to_datetime(old_power_pred_df['日期']).dt.date
         power_pred_df = pd.concat([new_power_pred_df, old_power_pred_df], axis=0)
-        if update_prediction:
-            power_pred_df = power_pred_df.drop_duplicates(subset='日期', keep='first')
-        else:
-            power_pred_df = power_pred_df.drop_duplicates(subset='日期', keep='last')
+        power_pred_df = power_pred_df.drop_duplicates(subset='日期', keep=keep)
         power_pred_df = power_pred_df.sort_values('日期').reset_index(drop=True)
         if save_prediction:
             power_pred_df.to_csv(power_prediction_filename, index=False, encoding='utf-8-sig')
