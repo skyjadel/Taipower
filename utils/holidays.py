@@ -43,6 +43,8 @@ typhoon_leave = {
     datetime.datetime(2024, 7, 25): 1,
     datetime.datetime(2024, 10, 1): 0.2,
     datetime.datetime(2024, 10, 2): 1,
+    datetime.datetime(2024, 10, 3): 1,
+    datetime.datetime(2024, 10, 4): 0.2,
 }
 
 #補班日
