@@ -111,6 +111,9 @@ def train_all_models(model_path, meta_path, data_path, effective_station_list=ef
                      apply_night_peak=False, remove_night_peak_samples=True, latest_model_path=latest_model_path,
                      start_date='2023-08-01', end_date='2200-12-31'):
     YF_list = os.listdir(meta_path)
+    if '夜尖峰' in YF_list:
+        YF_list.remove('夜尖峰')
+        YF_list = ['夜尖峰'] + YF_list
     for Y_feature in YF_list:
         print(f'{Y_feature} 訓練中.')
         train_one_model(Y_feature, model_path, meta_path, data_path, 
