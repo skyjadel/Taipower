@@ -6,8 +6,6 @@ import pandas as pd
 import datetime
 import numpy as np
 
-from utils.power_generation_types import power_generation_type
-
 test_sql_fn = '../realtime/realtime_data/realtime.db'
 test_hd_path = '../historical/data/'
 
@@ -93,12 +91,6 @@ def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_ty
                     break
         pwd_gen_df.loc[pwd_gen_df.index, key] = np.nansum(np.array(pwd_gen_df[this_col_list]), axis=1)
         pwd_gen_df = pwd_gen_df.drop(this_col_list, axis=1)
-
-    if integrate_power_type:
-        for type, this_list in power_generation_type.items():
-            this_col_list = [col for col in pwd_gen_df.columns if col in this_list]
-            pwd_gen_df.loc[pwd_gen_df.index, type] = np.nansum(np.array(pwd_gen_df[this_col_list]), axis=1)
-            pwd_gen_df = pwd_gen_df.drop(this_col_list, axis=1)
     
     time_list = list(pwd_gen_df['時間'])
     pwd_gen_df = pwd_gen_df.drop('時間', axis=1) / 10
