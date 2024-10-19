@@ -53,18 +53,20 @@ class Ensemble_Model():
         varify(): 輸入一個 pandas DataFrame 包含 X 與 Y_truth，回傳一個 DataFrame 回報主模型與各個子模型的預測成績
     '''
 
-    def __init__(self, Y_feature, 
-                 model_path=None, 
-                 X_feature_dict=None, hyperparameters_dict=None, weights='uniform',
-                 effective_station_list=effective_station_list,
-                 data_path=None, start_date='2023-08-01', end_date='2024-09-30',
-                 test_size=0.2, test_last_fold=False,
-                 fit_wind_square=False,
-                 apply_night_peak=False,
-                 NP_external_model_path=None,
-                 NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
-                 remove_night_peak_samples=True,
-                 is_NP_model=False):
+    def __init__(
+            self, Y_feature, 
+            model_path=None, 
+            X_feature_dict=None, hyperparameters_dict=None, weights='uniform',
+            effective_station_list=effective_station_list,
+            data_path=None, start_date='2023-08-01', end_date='2024-09-30',
+            test_size=0.2, test_last_fold=False,
+            fit_wind_square=False,
+            apply_night_peak=False,
+            NP_external_model_path=None,
+            NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
+            remove_night_peak_samples=True,
+            is_NP_model=False
+            ):
 
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
         self.forecast_features = ['晴', '多雲', '陰', '短暫陣雨', '短暫陣雨或雷雨', '午後短暫雷陣雨', '陣雨或雷雨',
@@ -96,65 +98,79 @@ class Ensemble_Model():
             else:
                 raise ValueError('model_path does not exist.')
             return None
-        else:
-            self.station_list = effective_station_list
-            self.apply_night_peak = apply_night_peak
-            self.remove_night_peak_samples = remove_night_peak_samples
-            self.X_feature_dict = X_feature_dict
-            self.hyperparameters_dict = hyperparameters_dict
-            self.start_date = start_date
-            self.end_date = end_date
-            self.data_path = data_path
-            self.test_size = test_size
-            self.test_last_fold = test_last_fold
-            self.fit_wind_square = fit_wind_square
-            self.NP_external_model_path = NP_external_model_path
-            self.NP_hyperparameters_dict = NP_hyperparameters_dict
-            self.NP_weights = NP_weights
-            self.NP_X_feature_dict = NP_X_feature_dict
-            self.is_NP_model = is_NP_model
+        
+        self.station_list = effective_station_list
+        self.apply_night_peak = apply_night_peak
+        self.remove_night_peak_samples = remove_night_peak_samples
+        self.X_feature_dict = X_feature_dict
+        self.hyperparameters_dict = self.modify_hyperparameters_dict(hyperparameters_dict)
+        self.start_date = start_date
+        self.end_date = end_date
+        self.data_path = data_path
+        self.test_size = test_size
+        self.test_last_fold = test_last_fold
+        self.fit_wind_square = fit_wind_square
+        self.NP_external_model_path = NP_external_model_path
+        self.NP_hyperparameters_dict = self.modify_hyperparameters_dict(NP_hyperparameters_dict)
+        self.NP_weights = NP_weights
+        self.NP_X_feature_dict = NP_X_feature_dict
+        self.is_NP_model = is_NP_model
 
-            if self.predict_way == 'obs_to_pwd':
-                self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
-            elif self.predict_way == 'fore_to_obs':
-                self.data_df = prepare_forecast_observation_df(self.data_path, start_date=self.start_date, end_date=self.end_date)
-                
-            self.model_labels = list(self.X_feature_dict.keys())
-            self.models = {model_label: self.assign_model(model_label) for model_label in self.model_labels}
-                        
-            self.scalers = {}
-            self.X_cols = {}
+        if self.predict_way == 'obs_to_pwd':
+            self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
+        elif self.predict_way == 'fore_to_obs':
+            self.data_df = prepare_forecast_observation_df(self.data_path, start_date=self.start_date, end_date=self.end_date)
+            
+        self.model_labels = list(self.X_feature_dict.keys())
+        self.models = {model_label: self.assign_model(model_label) for model_label in self.model_labels}
+                    
+        self.scalers = {}
+        self.X_cols = {}
 
-            self.weights = weights
-            if weights == 'uniform':
-                self.weights = {label: 1/len(self.model_labels) for label in self.model_labels}
+        self.weights = weights
+        if weights == 'uniform':
+            self.weights = {label: 1/len(self.model_labels) for label in self.model_labels}
 
-            if self.Y_feature in ['太陽能', '夜尖峰']:
-                self.data_df['夜尖峰'] = [0 if se > 50 else 1 for se in self.data_df['太陽能']]
+        if self.Y_feature in ['太陽能', '夜尖峰']:
+            self.data_df['夜尖峰'] = [0 if se > 50 else 1 for se in self.data_df['太陽能']]
 
-            if self.Y_feature == '太陽能' and self.apply_night_peak:
-                self.create_affiliated_NP_model()    
+        if self.Y_feature == '太陽能' and self.apply_night_peak:
+            self.create_affiliated_NP_model()    
+
+
+    def modify_hyperparameters_dict(self, hyperparameters_dict):
+        # 如果模型是 LightGBM, 加入參數阻止警告訊息出現
+        if hyperparameters_dict is None:
+            return None
+        if 'LightGBM' in hyperparameters_dict.keys():
+            hyperparameters_dict['LightGBM']['force_col_wise'] = True
+            hyperparameters_dict['LightGBM']['verbose'] = -1
+        return hyperparameters_dict
 
 
     def create_affiliated_NP_model(self):
         # 如果 self.NP_external_model_path 指定的位置是一個有效 model，則讀取該路徑模型，否則新建一個
         if not self.NP_external_model_path is None:
             try:
-                self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰',
-                                                       model_path=self.NP_external_model_path,
-                                                       is_NP_model=True)
+                self.Night_Peak_Model = Ensemble_Model(
+                    Y_feature='夜尖峰',
+                    model_path=self.NP_external_model_path,
+                    is_NP_model=True
+                    )
                 return None
             except:
                 self.NP_external_model_path = None
-        self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰',
-                                                X_feature_dict=self.NP_X_feature_dict,
-                                                hyperparameters_dict=self.NP_hyperparameters_dict,
-                                                weights=self.NP_weights,
-                                                effective_station_list=self.station_list,
-                                                data_path=self.data_path,
-                                                start_date=self.start_date,
-                                                end_date=self.end_date,
-                                                is_NP_model=True)
+        self.Night_Peak_Model = Ensemble_Model(
+            Y_feature='夜尖峰',
+            X_feature_dict=self.NP_X_feature_dict,
+            hyperparameters_dict=self.NP_hyperparameters_dict,
+            weights=self.NP_weights,
+            effective_station_list=self.station_list,
+            data_path=self.data_path,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            is_NP_model=True
+            )
 
     # Define Fully Connected Network Model
     def FCN_model(self, input_f, output_f, feature_counts=[16, 16, 16, 8], feature_count_label=None, dropout_factor=0, L2_factor=1e-15, mode='regressor'):
@@ -187,16 +203,14 @@ class Ensemble_Model():
 
 
     def get_XY(self, data_df, Y_feature, X_features=None):
+        # 定義 X 使用的欄位名
         station_list = self.station_list    
         X_cols = []
-
         if X_features is None:
             if self.predict_way == 'obs_to_pwd':
                 X_features=self.weather_features + self.single_column_names
             elif self.predict_way == 'fore_to_obs':
                 X_features=self.forecast_features
-
-        # 定義 X 使用的欄位名
         for x_f in X_features:
             if self.predict_way == 'obs_to_pwd':
                 possible_col_names = [f'{x_f}_{station}' for station in station_list]
@@ -246,12 +260,10 @@ class Ensemble_Model():
             input_f = self.calculate_input_x_feature_num(model_label)
             output_f = 1
             feature_counts = [16, 16, 16, 8]
-            return self.FCN_model(input_f=input_f, output_f=output_f, feature_counts=feature_counts,
-                                    mode=self.mode, **self.hyperparameters_dict[model_label])
-        # 如果模型是 LightGBM, 加入參數阻止警告訊息出現
-        if model_label == 'LightGBM':
-            return model_class_dict[self.mode][model_label](force_col_wise=True, verbose=-1,
-                                                             **self.hyperparameters_dict[model_label])
+            return self.FCN_model(
+                input_f=input_f, output_f=output_f, feature_counts=feature_counts,
+                mode=self.mode, **self.hyperparameters_dict[model_label]
+                )
         # 其他狀況，如果 model_label 與 self.mode 的組合在字典裡找得到對應，則回傳對應模型，否則回報錯誤
         if self.mode in model_class_dict.keys():
             if model_label in model_class_dict[self.mode].keys():
@@ -288,17 +300,13 @@ class Ensemble_Model():
 
 
     def train_ML_model(self, model_label, X_train, Y_train):
-        
         self.scalers[model_label] = StandardScaler().fit(X_train)
         X_train = self.scalers[model_label].transform(X_train)
-        
         _ = self.models[model_label].fit(X_train, Y_train)
 
 
     def train_DL_model(self, model_label, X_train, Y_train):
-
         X_train, X_val, Y_train, Y_val = self.get_train_and_test_data(X_train, Y_train, test_size=0.2, test_last_fold=False)
-        
         self.scalers[model_label] = StandardScaler().fit(X_train)
         X_train = self.scalers[model_label].transform(X_train)
         X_val = self.scalers[model_label].transform(X_val)
@@ -386,7 +394,7 @@ class Ensemble_Model():
                 final_prediction[np.where(final_prediction<0.5)] = 0
             return final_prediction
         # 若 use_model 不屬於以上狀況，則輸出錯誤訊息
-        raise ValueError(f'The string "{use_model}" is not included in the model labels. Must choose from {list(self.model_labels)} or "Ensemble".')
+        raise ValueError(f'The string "{use_model}" is not included in the model labels. Select one from {list(self.model_labels)} or "Ensemble".')
 
 
     def varify(self, return_var_df=False, var_df=None):
@@ -440,33 +448,24 @@ class Ensemble_Model():
 
 
     def load_model(self, model_path):
-        
-        def get_x_cols(filename):
+
+        def get_list(filename):
             try:
                 with open(filename, 'r', encoding='utf-8-sig') as f:
-                    X_cols_str = f.read()
+                    this_string = f.read()
             except:
                 with open(filename, 'r', encoding='big5') as f:
-                    X_cols_str = f.read()
-            return X_cols_str.split(', ')[0:-1]
-        
-        def get_station_list(filename):
-            try:
-                with open(filename, 'r', encoding='utf-8-sig') as f:
-                    station_str = f.read()
-            except:
-                with open(filename, 'r', encoding='big5') as f:
-                    station_str = f.read()
-            return station_str.split(', ')[0:-1]
+                    this_string = f.read()
+            return this_string.split(', ')[0:-1]
 
         self.load_model_metadata(model_path + 'meta.json')
         self.data_df = pd.read_csv(model_path + 'data.csv')
         self.train_df = pd.read_csv(model_path + 'training_set.csv')
 
-        self.station_list = get_station_list(model_path + 'Station_list.txt')
+        self.station_list = get_list(model_path + 'Station_list.txt')
 
         self.model_labels = list(self.X_feature_dict.keys())
-        self.X_cols = {model_label: get_x_cols(f'{model_path}{model_label}/X_columns.txt') for model_label in self.model_labels}
+        self.X_cols = {model_label: get_list(f'{model_path}{model_label}/X_columns.txt') for model_label in self.model_labels}
         self.scalers = {model_label: joblib.load(f'{model_path}{model_label}/XScaler.pkl') for model_label in self.model_labels}
         
         self.models = {}

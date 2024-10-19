@@ -16,22 +16,24 @@ test_hd_path = '../../historical copy/data/'
 def sun_light_time_to_energy(hr):
     return hr * 2.5198 + 8.6888
 
-wind_direction_dict = {'北':360,
-                       '南':180,
-                       '東':90,
-                       '西':270,
-                       '東北':45,
-                       '東南':135,
-                       '西北':315,
-                       '西南':215,
-                       '北北東':22.5,
-                       '東北東':67.5,
-                       '東南東':112.5,
-                       '南南東':157.5,
-                       '南南西':202.5,
-                       '西南西':237.5,
-                       '西北西':292.5,
-                       '北北西':337.5}
+wind_direction_dict = {
+    '北':360,
+    '南':180,
+    '東':90,
+    '西':270,
+    '東北':45,
+    '東南':135,
+    '西北':315,
+    '西南':215,
+    '北北東':22.5,
+    '東北東':67.5,
+    '東南東':112.5,
+    '南南東':157.5,
+    '南南西':202.5,
+    '西南西':237.5,
+    '西北西':292.5,
+    '北北西':337.5
+    }
 
 
 def get_avg_wind_direction(wind_speed_list, wind_direction_list):
@@ -166,11 +168,15 @@ def get_entire_day_observation(date, station, sql_db_fn):
     
 
 def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=False):
-    target_col_list = ['站名', '日期', '氣溫(℃)', '最高氣溫(℃)', '最低氣溫(℃)', '相對溼度(%)', '風速(m/s)', 
-                       '風向(360degree)', '最大瞬間風(m/s)', '最大瞬間風風向(360degree)', '降水量(mm)',
-                       '降水時數(hour)', '日照時數(hour)', '日照率(%)', '全天空日射量(MJ/㎡)', '總雲量(0~10)',
-                       '午後平均氣溫', '下午平均氣溫', '傍晚平均氣溫',
-                       '午後平均風速', '下午平均風速', '傍晚平均風速']
+    target_col_list = [
+        '站名', '日期',
+        '氣溫(℃)', '最高氣溫(℃)', '最低氣溫(℃)', '相對溼度(%)',
+        '風速(m/s)', '風向(360degree)', '最大瞬間風(m/s)', '最大瞬間風風向(360degree)',
+        '降水量(mm)', '降水時數(hour)',
+        '日照時數(hour)', '日照率(%)', '全天空日射量(MJ/㎡)', '總雲量(0~10)',
+        '午後平均氣溫', '下午平均氣溫', '傍晚平均氣溫',
+        '午後平均風速', '下午平均風速', '傍晚平均風速'
+        ]
     hour_description_dict = {
         '午後': [12, 14],
         '下午': [15, 17],
@@ -192,11 +198,11 @@ def get_oneday_weather_observation_data(date, station, sql_db_fn, return_sql_df=
     output_dict = {}
     output_dict['站名'] = [station]
     output_dict['日期'] = [date_str]
-    output_dict['氣溫(℃)'] = [nanmean(sql_df['Temperature']) if nanmean(sql_df['Temperature']) is None else round(nanmean(sql_df['Temperature']), ndigits=1)]
+    output_dict['氣溫(℃)'] = [None if nanmean(sql_df['Temperature']) is None else round(nanmean(sql_df['Temperature']), ndigits=1)]
     output_dict['最高氣溫(℃)'] = [np.max(sql_df['Temperature'])]
     output_dict['最低氣溫(℃)'] = [np.min(sql_df['Temperature'])]
-    output_dict['相對溼度(%)'] = [nanmean(sql_df['Humidity']) if nanmean(sql_df['Temperature']) is None else round(nanmean(sql_df['Humidity']))]
-    output_dict['風速(m/s)'] = [nanmean(sql_df['Wind_Speed']) if nanmean(sql_df['Temperature']) is None else round(nanmean(sql_df['Wind_Speed']), ndigits=1)]
+    output_dict['相對溼度(%)'] = [None if nanmean(sql_df['Temperature']) is None else round(nanmean(sql_df['Humidity']))]
+    output_dict['風速(m/s)'] = [None if nanmean(sql_df['Temperature']) is None else round(nanmean(sql_df['Wind_Speed']), ndigits=1)]
     output_dict['風向(360degree)'] = [get_avg_wind_direction(sql_df['Wind_Speed'], sql_df['Wind_Direction'])]
     output_dict['最大瞬間風(m/s)'] = [np.max(sql_df['Gust_Wind'])]
     row_of_max_gust_wind = sql_df[sql_df['Gust_Wind'] == np.max(sql_df['Gust_Wind'])]

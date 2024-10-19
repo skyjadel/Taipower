@@ -13,9 +13,11 @@ strptime = datetime.strptime
 class _Observer(ephem.Observer):
     def __init__(self, site_position):
         super().__init__()
-        self.lon, self.lat, self.elevation = [site_position['lon'],
-                                             site_position['lat'],
-                                             site_position['elevation']]
+        self.lon, self.lat, self.elevation = [
+            site_position['lon'],
+            site_position['lat'],
+            site_position['elevation']
+            ]
 
 def _taiwan_time_to_UTC(time_str):
     tw = pytz.timezone('Asia/Taipei')

@@ -29,6 +29,13 @@ time_description_dict = {
 }
 
 
+aggregation_func_dict = {
+    'mean': np.mean,
+    'max': np.max,
+    'min': np.min
+}
+
+
 def SunLightRate_to_SunFlux(rate, station, date):
     site = site_location_dict[station]
     relative_sun_flux = calculate_all_day_sunlight(site, date)
@@ -75,12 +82,8 @@ def predict_weather_features(model_path: str,
     
     for Y_feature in Y_feature_list:
         if wind_speed_naive and Y_feature in wind_speed_naive_col_dict.keys():
-            if wind_speed_naive_col_dict[Y_feature]['func'] == 'mean':
-                Y_pred = np.mean(forecast_df[wind_speed_naive_col_dict[Y_feature]['cols']], axis=1)
-            elif wind_speed_naive_col_dict[Y_feature]['func'] == 'max':
-                Y_pred = np.max(forecast_df[wind_speed_naive_col_dict[Y_feature]['cols']], axis=1)
-            elif wind_speed_naive_col_dict[Y_feature]['func'] == 'min':
-                Y_pred = np.min(forecast_df[wind_speed_naive_col_dict[Y_feature]['cols']], axis=1)
+            this_agg_func = aggregation_func_dict[wind_speed_naive_col_dict[Y_feature]['func']]
+            Y_pred = this_agg_func(forecast_df[wind_speed_naive_col_dict[Y_feature]['cols']], axis=1)
         else:
             MODEL = Ensemble_Model(Y_feature, model_path)
             Y_pred = MODEL.predict(forecast_df)
@@ -136,14 +139,16 @@ def evaluation(data_path=data_path, moving_mae_days=7):
     return combined_df
 
 
-def main_predict(data_path: str = data_path,
-                 model_path: str = model_path,
-                 predict_days: int = 7,
-                 save_prediction: bool = True,
-                 update_prediction: bool = False,
-                 avoid_training_set: bool = True,
-                 predict_weather_only: bool = False,
-                 wind_speed_naive: bool = False,):
+def main_predict(
+        data_path: str = data_path,
+        model_path: str = model_path,
+        predict_days: int = 7,
+        save_prediction: bool = True,
+        update_prediction: bool = False,
+        avoid_training_set: bool = True,
+        predict_weather_only: bool = False,
+        wind_speed_naive: bool = False,
+):
     '''主要的預測函數，會產生並儲存天氣與電力預測結果
     Arg:
         data_path (str, optional): 預測用資料路徑
@@ -151,7 +156,9 @@ def main_predict(data_path: str = data_path,
         predict_days (int, optional): 最多預測幾天的資料，預設為 7 天
         save_prediction (bool, optional): 是否要將預測資料儲存到 data_path 的指定位置，預設為 True
         update_prediction (bool, optional): 若指定位置的預測資料與新預測資料重複，是否覆寫資料，預設為 False
-        avoid_training_set (bool, optional): 是否限制模型訓練集包含的天數不予預測，預設為 True
+        avoid_training_set (bool, optional): 是否限制模型訓練集包含的天數不予預測，預設為 True,
+        predict_weather_only (bool, optional): 是否只預測氣象數值，預設為 False,
+        wind_speed_naive (bool, optional): 直接使用風速預報值的簡單平均來預測風速，不經過模型，預設為 False
     '''
     
     # 準備預測結果存放目錄

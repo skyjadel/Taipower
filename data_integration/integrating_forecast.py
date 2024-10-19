@@ -177,8 +177,10 @@ def encode_oneday_forecast_data(forecast_df):
     return pd.DataFrame([new_dict])
 
 
-def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, historical_df=None,
-                                    sample_hr=lastest_forecast_sample_hr, least_integrate_days=5):
+def arrange_forecast_for_given_town(
+        town, sql_db_path, forecast_times, historical_df=None,
+        sample_hr=lastest_forecast_sample_hr, least_integrate_days=5
+        ):
     
     if not historical_df is None:
         this_historical_df = historical_df[historical_df['鄉鎮']==town]
@@ -226,8 +228,11 @@ def arrange_forecast_for_given_town(town, sql_db_path, forecast_times, historica
     return_df = return_df.drop_duplicates(['日期', '鄉鎮'], keep='last').sort_values('日期').reset_index(drop=True)
     return return_df
 
-def arrange_forecast_for_towns(towns, sql_db_path, forecast_times, historical_df=None,
-                               sample_hr=lastest_forecast_sample_hr, least_integrate_days=5):
+def arrange_forecast_for_towns(
+        towns, sql_db_path, forecast_times, historical_df=None,
+        sample_hr=lastest_forecast_sample_hr, least_integrate_days=5
+        ):
+    
     df_list = []
     for town in towns:
         this_df = arrange_forecast_for_given_town(town, sql_db_path, historical_df=historical_df,
@@ -242,8 +247,10 @@ def main(sql_db_fn, historical_data_path, save_file=True, least_integrate_days=5
     # 將 SQL 資料庫中的預報資料整合到歷史預報資料 csv 檔中
     forecast_times = retrieve_update_times_from_sql(sql_db_fn)
     historical_df = pd.read_csv(historical_data_path+'weather/finalized/weather_forecast.csv')
-    df = arrange_forecast_for_towns(town_list, sql_db_fn, historical_df=historical_df,
-                                    forecast_times=forecast_times, least_integrate_days=least_integrate_days)
+    df = arrange_forecast_for_towns(
+        town_list, sql_db_fn, historical_df=historical_df,
+        forecast_times=forecast_times, least_integrate_days=least_integrate_days
+        )
     
     if df is None:
         return None

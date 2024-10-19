@@ -76,11 +76,13 @@ def build_hierarchical_dataframe(df, levels, value_column, total_name='total', c
         if not color_map is None:
             df_tree['color'] = [color_assign(df_tree.loc[i]['1st_level'], df_tree.loc[i]['depth']) for i in df_tree.index]
         df_list.append(df_tree)
-    total_dict = {'id':[total_name],
-                  'parent':[''],
-                  'value':[df[value_column].sum()],
-                  'depth':[0],
-                  '1st_level':['N/A']}
+    total_dict = {
+        'id':[total_name],
+        'parent':[''],
+        'value':[df[value_column].sum()],
+        'depth':[0],
+        '1st_level':['N/A']
+        }
     if not color_map is None:
         total_dict['color'] = [color_assign(total_dict['1st_level'][0], 0)]
     total = pd.DataFrame(total_dict, index=[1000])
