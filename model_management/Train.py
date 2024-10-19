@@ -63,6 +63,8 @@ def train_one_model(Y_feature, model_path, meta_path, data_path,
         NP_X_feature_dict = NP_meta['X_feature_dict']
         NP_hyperparameters_dict = NP_meta['hyperparameters_dict']
         NP_weights = NP_meta['weights']
+        NP_external_model_path = f'{model_path}夜尖峰/'
+        NP_external_model_path = NP_external_model_path if os.path.exists(NP_external_model_path) else None
         MODEL = Ensemble_Model(Y_feature=Y_feature, 
                                X_feature_dict=X_feature_dict, 
                                hyperparameters_dict=hyperparameters_dict, 
@@ -74,6 +76,7 @@ def train_one_model(Y_feature, model_path, meta_path, data_path,
                                test_size=test_size,
                                test_last_fold=test_last_fold,
                                fit_wind_square=fit_wind_square,
+                               NP_external_model_path=NP_external_model_path,
                                NP_X_feature_dict=NP_X_feature_dict,
                                NP_hyperparameters_dict=NP_hyperparameters_dict,
                                NP_weights=NP_weights,

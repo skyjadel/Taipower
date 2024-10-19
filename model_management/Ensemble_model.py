@@ -60,7 +60,9 @@ class Ensemble_Model():
                  data_path=None, start_date='2023-08-01', end_date='2024-09-30',
                  test_size=0.2, test_last_fold=False,
                  fit_wind_square=False,
-                 apply_night_peak=False, NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
+                 apply_night_peak=False,
+                 NP_external_model_path=None,
+                 NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
                  remove_night_peak_samples=True,
                  is_NP_model=False):
 
@@ -106,6 +108,11 @@ class Ensemble_Model():
             self.test_size = test_size
             self.test_last_fold = test_last_fold
             self.fit_wind_square = fit_wind_square
+            self.NP_external_model_path = NP_external_model_path
+            self.NP_hyperparameters_dict = NP_hyperparameters_dict
+            self.NP_weights = NP_weights
+            self.NP_X_feature_dict = NP_X_feature_dict
+            self.is_NP_model = is_NP_model
 
             if self.predict_way == 'obs_to_pwd':
                 self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
@@ -126,15 +133,28 @@ class Ensemble_Model():
                 self.data_df['夜尖峰'] = [0 if se > 50 else 1 for se in self.data_df['太陽能']]
 
             if self.Y_feature == '太陽能' and self.apply_night_peak:
-                self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰',
-                                                    X_feature_dict=NP_X_feature_dict,
-                                                    hyperparameters_dict=NP_hyperparameters_dict,
-                                                    weights=NP_weights,
-                                                    effective_station_list=effective_station_list,
-                                                    data_path=data_path,
-                                                    start_date=start_date,
-                                                    end_date=end_date)      
+                self.create_affiliated_NP_model()    
 
+
+    def create_affiliated_NP_model(self):
+        # 如果 self.NP_external_model_path 指定的位置是一個有效 model，則讀取該路徑模型，否則新建一個
+        if not self.NP_external_model_path is None:
+            try:
+                self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰',
+                                                       model_path=self.NP_external_model_path,
+                                                       is_NP_model=True)
+                return None
+            except:
+                self.NP_external_model_path = None
+        self.Night_Peak_Model = Ensemble_Model(Y_feature='夜尖峰',
+                                                X_feature_dict=self.NP_X_feature_dict,
+                                                hyperparameters_dict=self.NP_hyperparameters_dict,
+                                                weights=self.NP_weights,
+                                                effective_station_list=self.station_list,
+                                                data_path=self.data_path,
+                                                start_date=self.start_date,
+                                                end_date=self.end_date,
+                                                is_NP_model=True)
 
     # Define Fully Connected Network Model
     def FCN_model(self, input_f, output_f, feature_counts=[16, 16, 16, 8], feature_count_label=None, dropout_factor=0, L2_factor=1e-15, mode='regressor'):
@@ -308,7 +328,7 @@ class Ensemble_Model():
             else:
                 self.train_ML_model(model_label, X_train, Y_train)
 
-        if self.Y_feature == '太陽能' and self.apply_night_peak:
+        if self.Y_feature == '太陽能' and self.apply_night_peak and self.NP_external_model_path is None:
             self.Night_Peak_Model.train_ind = self.train_ind
             self.Night_Peak_Model.test_ind = self.test_ind
             self.Night_Peak_Model.train()
