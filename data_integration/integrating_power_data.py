@@ -6,6 +6,8 @@ import pandas as pd
 import datetime
 import numpy as np
 
+from utils.power_generation_types import power_generation_type
+
 test_sql_fn = '../realtime/realtime_data/realtime.db'
 test_hd_path = '../historical/data/'
 
@@ -31,7 +33,7 @@ hydro_powers = ['德基', '青山', '谷關', '天輪', '馬鞍', '萬大', '鉅
 generator_translation_dict.update({k: [k] for k in hydro_powers})
 
 
-def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_type=True, return_sql_df=False):
+def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_type=False, return_sql_df=False):
     date_str = datetime.datetime.strftime(date, '%Y-%m-%d')
     date_str_2nd_day = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y-%m-%d')
     conn = sqlite3.connect(sql_db_fn)
@@ -52,7 +54,10 @@ def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_ty
     if return_sql_df:
         return sql_df
 
-    pwd_gen_df = pd.pivot_table(sql_df, index='時間', columns=['機組','分類'], values='發電量')
+    if integrate_power_type:
+        pwd_gen_df = pd.pivot_table(sql_df, index='時間', columns=['分類'], values='發電量')
+    else:
+        pwd_gen_df = pd.pivot_table(sql_df, index='時間', columns=['機組','分類'], values='發電量')
 
     if day_only:
         pwd_gen_df['白日'] = [1 if np.abs(11.5 - int(d.split(' ')[1].split(':')[0])) <= 4.6 else 0 for d in pwd_gen_df.index]
@@ -64,28 +69,35 @@ def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_ty
     pwd_gen_df.rename({'Index':'時間'}, inplace=True)
 
     if integrate_power_type:
-        this_gen_list = [col for col in pwd_gen_df.columns if col[1] == '太陽能(Solar)']
-        pwd_gen_df.loc[pwd_gen_df.index, '太陽能發電'] = np.nansum(np.array(pwd_gen_df[this_gen_list]), axis=1)
-        pwd_gen_df = pwd_gen_df.drop(this_gen_list, axis=1)
+        return pwd_gen_df
 
-        this_gen_list = [col for col in pwd_gen_df.columns if col[1] == '風力(Wind)']
-        pwd_gen_df.loc[pwd_gen_df.index, '風力發電'] = np.nansum(np.array(pwd_gen_df[this_gen_list]), axis=1)
-        pwd_gen_df = pwd_gen_df.drop(this_gen_list, axis=1)
+    this_gen_list = [col for col in pwd_gen_df.columns if col[1] == '太陽能(Solar)']
+    pwd_gen_df.loc[pwd_gen_df.index, '太陽能發電'] = np.nansum(np.array(pwd_gen_df[this_gen_list]), axis=1)
+    pwd_gen_df = pwd_gen_df.drop(this_gen_list, axis=1)
+
+    this_gen_list = [col for col in pwd_gen_df.columns if col[1] == '風力(Wind)']
+    pwd_gen_df.loc[pwd_gen_df.index, '風力發電'] = np.nansum(np.array(pwd_gen_df[this_gen_list]), axis=1)
+    pwd_gen_df = pwd_gen_df.drop(this_gen_list, axis=1)
 
     if ('電池', '儲能負載(Energy Storage Load)') in pwd_gen_df.columns:
         pwd_gen_df[('電池', '')] = pwd_gen_df[('電池', '儲能(Energy Storage System)')] + pwd_gen_df[('電池', '儲能負載(Energy Storage Load)')]
         pwd_gen_df.drop([('電池', '儲能(Energy Storage System)'), ('電池', '儲能負載(Energy Storage Load)')], axis=1, inplace=True)
 
+    pwd_gen_df.columns = [col[0] for col in pwd_gen_df.columns]
+    for key, v in generator_translation_dict.items():
+        this_col_list = []
+        for col in pwd_gen_df.columns:
+            for this_indicator in v:
+                if this_indicator in col:
+                    this_col_list.append(col)
+                    break
+        pwd_gen_df.loc[pwd_gen_df.index, key] = np.nansum(np.array(pwd_gen_df[this_col_list]), axis=1)
+        pwd_gen_df = pwd_gen_df.drop(this_col_list, axis=1)
+
     if integrate_power_type:
-        pwd_gen_df.columns = [col[0] for col in pwd_gen_df.columns]
-        for key, v in generator_translation_dict.items():
-            this_col_list = []
-            for col in pwd_gen_df.columns:
-                for this_indicator in v:
-                    if this_indicator in col:
-                        this_col_list.append(col)
-                        break
-            pwd_gen_df.loc[pwd_gen_df.index, key] = np.nansum(np.array(pwd_gen_df[this_col_list]), axis=1)
+        for type, this_list in power_generation_type.items():
+            this_col_list = [col for col in pwd_gen_df.columns if col in this_list]
+            pwd_gen_df.loc[pwd_gen_df.index, type] = np.nansum(np.array(pwd_gen_df[this_col_list]), axis=1)
             pwd_gen_df = pwd_gen_df.drop(this_col_list, axis=1)
     
     time_list = list(pwd_gen_df['時間'])
