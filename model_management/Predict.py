@@ -44,7 +44,7 @@ def SunLightRate_to_SunFlux(rate, station, date):
 
 def convert_weather_df(weather_df, data_path=data_path):
     weather_df = convert_weather_obseravtion_data(weather_df)
-    weather_df = add_date_related_information(weather_df)
+    weather_df = add_date_related_information(weather_df, daytime_fn=data_path+'daytime/daytime.csv')
     power_df = read_historical_power_data(data_path + 'power/power_generation_data.csv')
     power_agg_df = get_period_agg_power(power_df, agg_type='max', date_list=list(weather_df['日期']), return_agg_only=True)
     weather_df = pd.merge(weather_df, power_agg_df, on='日期')

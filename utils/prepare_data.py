@@ -134,8 +134,8 @@ def convert_weather_obseravtion_data(input_weather_df, start_date=start_date, en
             if not col in ['站名', '日期'] and type(element) == str:
                 if big_weather_df.loc[i, col] == 'T':
                     big_weather_df.loc[i, col] = 0
-                    else:
-                        big_weather_df.loc[i, col] = np.nan
+                    continue
+                big_weather_df.loc[i, col] = np.nan
     
     # 風向與風速資料轉換        
     if ('風速' in big_weather_df.columns and '風向' in big_weather_df.columns)\
@@ -267,7 +267,7 @@ def holiday_identify(date):
 
 
 # 加入日期數字、假日、白天長度等可以由日期決定的資訊
-def add_date_related_information(df):
+def add_date_related_information(df, daytime_fn):
     # 日期數字化
     date_num = []
     first_date = datetime.datetime.strptime(FIRST_DATE_STR, '%Y-%m-%d')
@@ -290,12 +290,9 @@ def add_date_related_information(df):
                                 for i, d in enumerate(df['日期'])]
     
     # 加入白天長度
-    site = {
-    'lon': '123.00',
-    'lat': '23.5',
-    'elevation': 0
-    }
-    df['白日長度'] = [calculate_daytime(site, date) for date in df['日期']]
+    daytime_df = pd.read_csv(daytime_fn)
+    daytime_df['日期'] = pd.to_datetime(daytime_df['日期'])
+    df = pd.merge(df, daytime_df, on='日期')
 
     return df
 
@@ -358,7 +355,7 @@ def prepare_forecast_power_df(historical_data_path: str, start_date: str=start_d
     forecast_power_df = pd.merge(big_power_type_df, forecast_df, on='日期', how='inner')
 
     # 增加日期相關特徵
-    forecast_power_df = add_date_related_information(forecast_power_df)
+    forecast_power_df = add_date_related_information(forecast_power_df, historical_data_path + 'daytime/daytime.csv')
 
     return forecast_power_df
 
@@ -387,7 +384,7 @@ def prepare_observation_power_df(historical_data_path: str, start_date: str=star
     weather_power_df = pd.merge(big_power_type_df, weather_df, on='日期', how='inner')
 
     # 增加日期相關特徵
-    weather_power_df = add_date_related_information(weather_power_df)
+    weather_power_df = add_date_related_information(weather_power_df, historical_data_path + 'daytime/daytime.csv')
 
     return weather_power_df
 
