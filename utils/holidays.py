@@ -36,6 +36,17 @@ holidays = [
     datetime.datetime(2024, 9, 17),
     datetime.datetime(2024, 10, 10),
     datetime.datetime(2025, 1, 1),
+    datetime.datetime(2025, 1, 27),
+    datetime.datetime(2025, 1, 28),
+    datetime.datetime(2025, 1, 29),
+    datetime.datetime(2025, 1, 30),
+    datetime.datetime(2025, 1, 31),
+    datetime.datetime(2025, 2, 28),
+    datetime.datetime(2025, 4, 3),
+    datetime.datetime(2025, 4, 4),
+    datetime.datetime(2025, 5, 30),
+    datetime.datetime(2025, 10, 6),
+    datetime.datetime(2025, 10, 10),
 ]
 
 typhoon_leave = {
@@ -57,6 +68,7 @@ adjusted_work_days = [
     datetime.datetime(2023, 6, 17),
     datetime.datetime(2023, 9, 23),
     datetime.datetime(2024, 2, 3),
+    datetime.datetime(2025, 2, 8),
 ]
 
 #春節
@@ -77,5 +89,14 @@ lunar_new_year = [
     datetime.datetime(2024, 2, 11),
     datetime.datetime(2024, 2, 12),
     datetime.datetime(2024, 2, 13),
-    datetime.datetime(2024, 2, 14),   
+    datetime.datetime(2024, 2, 14),
+    datetime.datetime(2025, 1, 25),
+    datetime.datetime(2025, 1, 26),
+    datetime.datetime(2025, 1, 27),
+    datetime.datetime(2025, 1, 28),
+    datetime.datetime(2025, 1, 29),
+    datetime.datetime(2025, 1, 30),
+    datetime.datetime(2025, 1, 31),
+    datetime.datetime(2025, 2, 1),
+    datetime.datetime(2025, 2, 2),  
 ]
