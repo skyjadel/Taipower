@@ -47,9 +47,9 @@ def get_data(sql_db_path):
         power_generator = row[2].split('(')[0]
         if not power_generator == '小計':
             power_type = bs(row[0], 'html.parser').find('b').text
-            power_volume = 'NULL' if row[3] == '-' else float(row[3])
-            power_produce = 'NULL' if row[4] in ['-', 'N/A'] else float(row[4])
             if not (time_str, power_type, power_generator) in existing_data:
+                power_volume = 'NULL' if row[3] == '-' else float(row[3])
+                power_produce = 'NULL' if row[4] in ['-', 'N/A'] else float(row[4])
                 cursor.execute(f"INSERT INTO power VALUES ('{time_str}', '{power_type}', '{power_generator}', {power_volume}, {power_produce});")
 
     conn.commit()
