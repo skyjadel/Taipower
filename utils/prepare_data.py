@@ -130,12 +130,10 @@ def convert_weather_obseravtion_data(input_weather_df, start_date=start_date, en
     ## 把天氣觀測資料轉成數字格式
     for i in big_weather_df.index:
         for col in big_weather_df.columns:
-            if not col in ['站名', '日期']:
-                try:
-                    big_weather_df.loc[i, col] = np.float32(big_weather_df.loc[i, col])
-                except:
-                    if big_weather_df.loc[i, col] == 'T':
-                        big_weather_df.loc[i, col] = 0
+            element = big_weather_df.loc[i, col]
+            if not col in ['站名', '日期'] and type(element) == str:
+                if big_weather_df.loc[i, col] == 'T':
+                    big_weather_df.loc[i, col] = 0
                     else:
                         big_weather_df.loc[i, col] = np.nan
     
