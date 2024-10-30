@@ -83,7 +83,7 @@ class Ensemble_Model():
             self.varify_metric = f1_score
 
         if self.Y_feature in ['風力', '太陽能', '尖峰負載', '夜尖峰']:
-            self.predict_way = 'obs_to_pwd'
+            self.predict_way = 'obs_to_pwr'
         elif self.Y_feature in ['日照率', '最高氣溫', '最低氣溫', '氣溫', '風速'] or '平均' in self.Y_feature:
             self.predict_way = 'fore_to_obs'
 
@@ -116,7 +116,7 @@ class Ensemble_Model():
         self.NP_X_feature_dict = NP_X_feature_dict
         self.is_NP_model = is_NP_model
 
-        if self.predict_way == 'obs_to_pwd':
+        if self.predict_way == 'obs_to_pwr':
             self.data_df = prepare_data(self.data_path, start_date=self.start_date, end_date=self.end_date)
         elif self.predict_way == 'fore_to_obs':
             self.data_df = prepare_forecast_observation_df(self.data_path, start_date=self.start_date, end_date=self.end_date)
@@ -207,12 +207,12 @@ class Ensemble_Model():
         station_list = self.station_list    
         X_cols = []
         if X_features is None:
-            if self.predict_way == 'obs_to_pwd':
+            if self.predict_way == 'obs_to_pwr':
                 X_features=self.weather_features + self.single_column_names
             elif self.predict_way == 'fore_to_obs':
                 X_features=self.forecast_features
         for x_f in X_features:
-            if self.predict_way == 'obs_to_pwd':
+            if self.predict_way == 'obs_to_pwr':
                 possible_col_names = [f'{x_f}_{station}' for station in station_list]
             elif self.predict_way == 'fore_to_obs':
                 possible_col_names = [f'{x_f}預報_{hr}' for hr in range(0, 24, 3)]
