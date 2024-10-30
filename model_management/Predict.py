@@ -9,8 +9,7 @@ from pandas import DataFrame
 from model_management.Ensemble_model import Ensemble_Model
 from utils.sun_light import calculate_all_day_sunlight
 from utils.holidays import *
-from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data, add_date_related_information, read_historical_forecast_data
-from utils.convert_wind_info import polar_to_cartesian_coord
+from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data, add_date_related_information, read_historical_forecast_data, get_period_agg_power
 from utils.station_info import *
 
 from Pytorch_models.metrics import Array_Metrics
@@ -43,9 +42,12 @@ def SunLightRate_to_SunFlux(rate, station, date):
     return sun_flux
 
 
-def convert_weather_df(weather_df):
+def convert_weather_df(weather_df, data_path=data_path):
     weather_df = convert_weather_obseravtion_data(weather_df)
     weather_df = add_date_related_information(weather_df)
+    power_df = read_historical_power_data(data_path + 'power/power_generation_data.csv')
+    power_agg_df = get_period_agg_power(power_df, agg_type='max', date_list=list(weather_df['日期']), return_agg_only=True)
+    weather_df = pd.merge(weather_df, power_agg_df, on='日期')
     return weather_df
 
 
@@ -98,8 +100,13 @@ def predict_weather_features(model_path: str,
     return output_df
 
 
-def predict_power_features(model_path: str, input_weather_df: DataFrame):
-    weather_df = convert_weather_df(input_weather_df)
+def predict_power_features(
+        model_path: str,
+        input_weather_df: DataFrame,
+        data_path: str,
+        ):
+    weather_df = convert_weather_df(input_weather_df,
+                                    data_path=data_path)
     output_df = deepcopy(weather_df[['日期']])
     
     Y_feature_list = ['風力', '太陽能', '尖峰負載']
@@ -187,7 +194,7 @@ def main_predict(
                                    wind_speed_naive=wind_speed_naive)
     if predict_weather_only:
         return wDF
-    pwd_DF = predict_power_features(model_path, wDF)
+    pwd_DF = predict_power_features(model_path, wDF, data_path=data_path)
     wDF['日期'] = wDF['日期'].dt.date
     pwd_DF['日期'] = pwd_DF['日期'].dt.date
 

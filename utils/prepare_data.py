@@ -69,7 +69,13 @@ def delete_and_fill_na(df):
     return df
 
 
-def read_historical_power_data(data_fn, start_date=start_date, end_date=end_date):
+def read_historical_power_data(
+        data_fn,
+        start_date=start_date, end_date=end_date,
+        agg_type_list=['max', 'min', 'mean', 'median'],
+        agg_feature_list=['風力', '太陽能', '尖峰負載'],
+        agg_duration=90
+        ):
     power_historical_data_df = pd.read_csv(data_fn)
     power_historical_data_df['日期'] = pd.to_datetime(power_historical_data_df['日期'])
 
@@ -105,6 +111,9 @@ def read_historical_power_data(data_fn, start_date=start_date, end_date=end_date
     big_power_type_df['夜尖峰'] = [0 if se > 20 else 1 for se in big_power_type_df['太陽能']]
 
     big_power_type_df = delete_and_fill_na(big_power_type_df)
+
+    for agg_type in agg_type_list:
+        big_power_type_df = get_period_agg_power(big_power_type_df, power_features=agg_feature_list, duration=agg_duration, agg_type=agg_type)
 
     return big_power_type_df
 
@@ -194,6 +203,61 @@ def read_historical_forecast_data(data_fn, start_date=start_date, end_date=end_d
         forecast_df = pd.concat([date_column] + [forecast_dfs[town].add_suffix(f'_{town}') for town in town_names], axis=1)
 
     return forecast_df
+
+
+def get_period_agg_power(
+        power_df, power_features=['風力', '太陽能', '尖峰負載'],
+        date_list=None, duration=90, agg_type='mean',
+        new_date=False, return_agg_only=False,
+        ):
+    
+    agg_func_dict = {
+        'max': {'func':np.nanmax, 'suffix':f'_{duration}天內最大值'},
+        'min': {'func':np.nanmin, 'suffix':f'_{duration}天內最小值'},
+        'mean': {'func':np.nanmean, 'suffix':f'_{duration}天內平均值'},
+        'median': {'func':np.nanmedian, 'suffix':f'_{duration}天內中位數'},
+    }
+    agg_func = agg_func_dict[agg_type]['func']
+    agg_suffix = agg_func_dict[agg_type]['suffix']
+
+    if type(power_features) == str:
+        power_features = [power_features]
+
+    if date_list is None:
+        date_list = list(power_df['日期'])
+        if new_date:
+            date_list.append(max(date_list) + datetime.timedelta(days=1))
+
+    result_df = pd.DataFrame({'日期': date_list})
+    
+    for feature in power_features:
+        new_col_name = f'{feature}{agg_suffix}'
+        if new_col_name in power_df.columns:
+            power_df.drop(new_col_name, axis=1, inplace=True)
+        
+        temp_date_df = pd.DataFrame({'日期': date_list})
+        temp_date_df['日期'] = pd.to_datetime(temp_date_df['日期'])
+        temp_date_pwr_df = pd.merge(temp_date_df, power_df, on='日期', how='outer')
+        feature_list = list(temp_date_pwr_df[feature])
+        if new_date:
+            feature_list.append(0)
+        operate_df = temp_date_pwr_df[['日期', feature]]
+        
+        result_value_list = []
+        for date in date_list:
+            start_date = date - datetime.timedelta(days=duration+1)
+            end_date = date - datetime.timedelta(days=2)
+            this_df = operate_df[operate_df['日期']>=start_date]
+            this_df = this_df[this_df['日期']<=end_date]
+            if len(this_df) == 0:
+                result_value_list.append(operate_df[operate_df['日期']==date].iloc[0][feature])
+                continue
+            result_value_list.append(agg_func(this_df[feature]))
+        result_df[new_col_name] = result_value_list
+    
+    if return_agg_only:
+        return result_df
+    return pd.merge(power_df, result_df, on='日期', how='outer')
 
 
 def holiday_identify(date):
