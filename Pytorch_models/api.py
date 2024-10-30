@@ -29,7 +29,7 @@ class Best_Parameter_Saver():
         self.mode = mode
         if mode in ['min', 'avg_min']:
             self.best_indicator = 1e20
-        elif mode in ['max', 'avg_max']:
+        if mode in ['max', 'avg_max']:
             self.best_indicator = -1e20
         self.indicators = []
         self.best_epoch = 0
@@ -42,28 +42,26 @@ class Best_Parameter_Saver():
     def load_params(self, model):
         model.load_state_dict(self.best_model_wts)
         return model
+    
+    def get_moving_average(self):
+        if len(self.indicators) >= self.mv_length:
+            return np.mean(self.indicators[-self.mv_length::])
+        return self.best_indicator
+    
+    def update_func(self, indicator, model):
+        self.best_indicator = indicator
+        self.save_params(model)
         
     def update(self, model, indicator):
         self.indicators.append(indicator)
-        if self.mode == 'min':
-            if indicator < self.best_indicator:
-                self.best_indicator = indicator
-                self.save_params(model)
-        elif self.mode == 'max':
-            if indicator > self.best_indicator:
-                self.best_indicator = indicator
-                self.save_params(model)
-        elif 'avg' in self.mode:
-            if len(self.indicators) >= self.mv_length:
-                moving_avg = np.mean(self.indicators[-self.mv_length::])
-                if self.mode == 'avg_min':
-                    if moving_avg < self.best_indicator:
-                        self.best_indicator = moving_avg
-                        self.save_params(model)
-                elif self.mode == 'avg_max':
-                    if moving_avg > self.best_indicator:
-                        self.best_indicator = moving_avg
-                        self.save_params(model)
+        this_indicator = indicator
+        if 'avg' in self.mode:
+            this_indicator = self.get_moving_average()
+
+        if 'min' in self.mode and this_indicator < self.best_indicator:
+            self.update_func(this_indicator, model)
+        if 'max' in self.mode and this_indicator > self.best_indicator:
+            self.update_func(this_indicator, model)
 
 
 class Model_API():
@@ -99,29 +97,25 @@ class Model_API():
         '''
         self.model = model
         self.L2_factor = L2_factor
-        self.linear_transform = linear_transform
+        self.linear_transform = linear_transform and not classifier
         self.classifier = classifier
-        if classifier:
-            if self.model.params['output_f'] == 1:
-                self.loss = nn.BCELoss()
-            else:
-                self.loss = nn.CrossEntropyLoss()
-            self.linear_transform = False
-        else:
-            self.loss = nn.MSELoss()
+        self.loss = self._loss_function_assignment()
     
-    def standard_scaler_fit(self, X, Y):
+    def _loss_function_assignment(self):
+        if self.classifier:
+            return nn.BCELoss() if self.model.params['output_f'] == 1 else nn.CrossEntropyLoss()
+        return nn.MSELoss()
+
+    def _standard_scaler_fit(self, X, Y):
         self.scalerX = StandardScaler().fit(X)
         if not self.classifier:
             if len(Y.shape) == 1:
                 Y = Y.reshape(-1, 1)
             self.scalerY = StandardScaler().fit(Y)
-
-        
+     
     def data_preprocess(self, X, Y, batch_size, shuffle, standard_scale=True):
-        if not self.classifier:
-            if len(Y.shape) == 1:
-                Y = Y.reshape(-1, 1)
+        if not self.classifier and len(Y.shape) == 1:
+            Y = Y.reshape(-1, 1)
         if standard_scale:
             X = self.scalerX.transform(X)
             if not self.classifier:
@@ -131,9 +125,88 @@ class Model_API():
         dataset = TensorDataset(X.to(device), Y.to(device))
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
         return data_loader
- 
+    
+    def _train_epoch(self, optimizer, train_loader, loss_function, metrics):
+        self.model.train()
+        total_loss, total_samples = 0, 0
+        total_metrics = {k: 0 for k in metrics.keys()}
+        # Loop over batches
+        for this_X, this_Y in train_loader:
+            this_batch_size = this_X.size(0)
+            this_Y = this_Y.squeeze()
+            if this_batch_size > 2:
+                # Propogation and Weight adjustment
+                optimizer.zero_grad()
+                y_pred = self.model(this_X).squeeze()
+                loss_train = loss_function(y_pred, this_Y)
+                loss_train.backward()
+                optimizer.step()
+                # Record summation of loss and metrics, and number of samples
+                total_loss += loss_train * this_batch_size
+                for k, func in metrics.items():
+                    total_metrics[k] += func(this_Y, y_pred) * this_batch_size
+                total_samples += this_batch_size
 
-    def fit(self, X_train, Y_train, X_val=None, Y_val=None,
+        # Record loss and metrics for training set
+        self.history['Train_loss'].append((total_loss / total_samples).item())
+        for k in metrics.keys():
+            self.history[f'Train_{k}'].append((total_metrics[k] / total_samples).item())
+
+    def _validation_epoch(self, val_loader, loss_function, metrics):
+        self.model.eval()
+        total_loss, total_samples = 0, 0
+        total_metrics = {k: 0 for k in metrics.keys()}
+        # Calculate and Record loss and metrics for validation set
+        for this_X, this_Y in val_loader:
+            this_Y = this_Y.squeeze()
+            with torch.no_grad():
+                y_pred = self.model(this_X).squeeze()
+            loss_val = loss_function(y_pred, this_Y)
+            
+            this_batch_size = this_X.size(0)
+            total_loss += loss_val * this_batch_size
+            for k, func in metrics.items():
+                total_metrics[k] += func(this_Y, y_pred) * this_batch_size
+            total_samples += this_batch_size
+
+        self.history['Val_loss'].append((total_loss / total_samples).item())
+        for k in metrics.keys():
+            self.history[f'Val_{k}'].append((total_metrics[k] / total_samples).item())
+
+    def _adjust_learning_rate(self, scheduler, scheduler_ref):
+        # Adjust learning rate and save best weights if certain criterias have been satisfied
+        ref = self.history[scheduler_ref][-1]
+        scheduler.step(ref)
+        self.best_parameter_saver.update(self.model, ref)
+
+    def _early_stop_checkpoint(self, optimizer, verbose):
+        # 檢查 lr 是否有改變，有改變的話印出提示訊息
+        # 若 lr < min_lr 則結束訓練
+        current_lr = optimizer.param_groups[0]['lr']
+        if current_lr < self.min_lr:
+            if verbose == 1:
+                print(f'Learning rate is very small, terimnate training.')
+            return True
+        if not current_lr == self.previous_lr and verbose==1:
+            print(f"Learning rate changed from {self.previous_lr} to {current_lr}")
+        self.previous_lr = current_lr
+        return False
+    
+    def _train_linear_transform_model(self, X_train, Y_train):
+        if hasattr(self, 'scalerX'):
+            test_X = torch.tensor(self.scalerX.transform(X_train), dtype=torch.float32)
+        else:
+            test_X = torch.tensor(X_train, dtype=torch.float32)
+        self.Y_t = Y_train
+        self.Y_p = self.model.to('cpu')(test_X).detach().numpy()
+        if hasattr(self, 'scalerY'):
+            self.Y_p = self.scalerY.inverse_transform(self.Y_p)
+
+        self.LinearModel = LinearRegression()
+        _ = self.LinearModel.fit(self.Y_p.reshape(-1, 1), self.Y_t.reshape(-1))
+
+    def fit(
+            self, X_train, Y_train, X_val=None, Y_val=None,
             standard_scale = True,
             loss_function = 'auto',
             metrics = {'MAE': mae},
@@ -145,7 +218,9 @@ class Model_API():
             n_epoch=1000,
             L2_factor=None,
             first_lr=1e-3,
-            verbose=0):
+            min_lr=1e-6,
+            verbose=0
+            ):
         '''訓練模型
         Args:
             X_train, Y_train (numpy array): 訓練集
@@ -163,22 +238,14 @@ class Model_API():
             first_lr (float, optional): 起始 learning rate，預設為 1e-3
             verbose (int, optional): 訓練時印出的資訊詳細程度，可為 0 (資訊少) 或 1 (資訊多)
         '''
-        
         # 初始化
-        if loss_function == 'auto':
-            loss_function = self.loss
-        
-        if L2_factor is None:
-            L2_factor = self.L2_factor
-
+        loss_function = self.loss if loss_function == 'auto' else loss_function
+        L2_factor = self.L2_factor if L2_factor is None else L2_factor
         self.best_parameter_saver = Best_Parameter_Saver(mode=best_parametet_saver_mode, mv_length=best_parametet_saver_mv_length)
-
-        validation = True
-        if X_val is None or Y_val is None:
-            validation = False
+        validation = (not X_val is None) and (not Y_val is None)
         
         if standard_scale:
-            self.standard_scaler_fit(X_train, Y_train)
+            self._standard_scaler_fit(X_train, Y_train)
         
         train_loader = self.data_preprocess(X_train, Y_train, batch_size, shuffle=True, standard_scale=standard_scale)
         if validation:
@@ -186,7 +253,6 @@ class Model_API():
 
         optimizer = optim.Adam(self.model.parameters(), lr=first_lr, weight_decay=L2_factor)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode=scheduler_mode, factor=10**(-0.5), patience=20)
-        criterion = loss_function
 
         self.history = {'Train_loss':[]}
         for key in metrics.keys():
@@ -196,104 +262,33 @@ class Model_API():
             for key in metrics.keys():
                 self.history[f'Val_{key}'] = []
 
-        previous_lr = first_lr
-        # 若有 GPU 則將 model 移到 GPU
-        self.model.to(device)
+        self.previous_lr = first_lr
+        self.min_lr = min_lr
+        self.model.to(device) # 若有 GPU 則將 model 移到 GPU
 
         # 訓練
         iterator = range(n_epoch)
         for epoch in iterator:
-            # Training Set
-            self.model.train()
-            total_loss, total_samples = 0, 0
-            total_metrics = {k: 0 for k in metrics.keys()}
-            # Loop over batches
-            for this_X, this_Y in train_loader:
-                this_batch_size = this_X.size(0)
-                this_Y = this_Y.squeeze()
-                if this_batch_size > 2:
-                    # Propogation and Weight adjustment
-                    optimizer.zero_grad()
-                    y_pred = self.model(this_X).squeeze()
-                    loss_train = criterion(y_pred, this_Y)
-                    loss_train.backward()
-                    optimizer.step()
-                    # Record summation of loss and metrics, and number of samples
-                    total_loss += loss_train * this_batch_size
-                    for k, func in metrics.items():
-                        total_metrics[k] += func(this_Y, y_pred) * this_batch_size
-                    total_samples += this_batch_size
-
-            # Record loss and metrics for training set
-            self.history['Train_loss'].append((total_loss / total_samples).item())
-            for k in metrics.keys():
-                self.history[f'Train_{k}'].append((total_metrics[k] / total_samples).item())
-
-            # Validation Set
+            self._train_epoch(optimizer, train_loader, loss_function, metrics)
             if validation:
-                self.model.eval()
-                total_loss, total_samples = 0, 0
-                total_metrics = {k: 0 for k in metrics.keys()}
-                # Calculate and Record loss and metrics for validation set
-                for this_X, this_Y in val_loader:
-                    this_Y = this_Y.squeeze()
-                    with torch.no_grad():
-                        y_pred = self.model(this_X).squeeze()
-                    loss_val = criterion(y_pred, this_Y)
-                    
-                    this_batch_size = this_X.size(0)
-                    total_loss += loss_val * this_batch_size
-                    for k, func in metrics.items():
-                        total_metrics[k] += func(this_Y, y_pred) * this_batch_size
-                    total_samples += this_batch_size
-
-                self.history['Val_loss'].append((total_loss / total_samples).item())
-                for k in metrics.keys():
-                    self.history[f'Val_{k}'].append((total_metrics[k] / total_samples).item())
-                
-                # Adjust learning rate and save best weights if certain criterias have been satisfied
-                ref = self.history[scheduler_ref][-1]
-                scheduler.step(ref)
-                self.best_parameter_saver.update(self.model, ref)
-            else:
-                scheduler.step(ref)
-                self.best_parameter_saver.update(self.model, ref)
+                self._validation_epoch(val_loader, loss_function, metrics)
+            self._adjust_learning_rate(scheduler, scheduler_ref)
             
-            # Print out informations of this epoch
             if verbose==1:
-                info_string = f'Epoch: {epoch}, '
-                for key, value in self.history.items():
-                    info_string += f'{key}: {value[-1]:.4f}, '
+                # Print out informations of this epoch
+                info_list = [f'Epoch: {epoch}'] + [f'{key}: {value[-1]:.4f}' for key, value in self.history.items()]
+                info_string = ', '.join(info_list)
                 print(info_string)
-            
-            # 檢查 lr 是否有改變，有改變的話印出提示訊息
-            # 若 lr < 1e-6 則結束訓練
-            current_lr = optimizer.param_groups[0]['lr']
-            if not current_lr == previous_lr:
-                if current_lr < 1e-6:
-                    if verbose == 1:
-                        print(f'Learning rate is very small, terimnate training.')
-                    break
-                if verbose == 1:
-                    print(f"Learning rate changed from {previous_lr} to {current_lr}")
-                previous_lr = current_lr
+              
+            if self._early_stop_checkpoint(optimizer, verbose):
+                break
 
         # 將訓練過程暫存的最佳參數讀回來 
         self.model = self.best_parameter_saver.load_params(self.model)
 
         # 線性轉換
         if self.linear_transform:
-            if hasattr(self, 'scalerX'):
-                test_X = torch.tensor(self.scalerX.transform(X_train), dtype=torch.float32)
-            else:
-                test_X = torch.tensor(X_train, dtype=torch.float32)
-            self.Y_t = Y_train
-            self.Y_p = self.model.to('cpu')(test_X).detach().numpy()
-            if hasattr(self, 'scalerY'):
-                self.Y_p = self.scalerY.inverse_transform(self.Y_p)
-
-            self.LinearModel = LinearRegression()
-            _ = self.LinearModel.fit(self.Y_p.reshape(-1, 1), self.Y_t.reshape(-1))
+            self._train_linear_transform_model(X_train, Y_train)
             
     # 進行推論
     def predict(self, X, linear_transform=True):
@@ -310,8 +305,7 @@ class Model_API():
         if self.classifier:
             Y[np.where(Y<0.5)] = 0
             Y[np.where(Y>=0.5)] = 1
-        Y = np.squeeze(Y)
-        return Y
+        return np.squeeze(Y)
 
     # 模型參數存檔
     def save_weight(self, file_path):
