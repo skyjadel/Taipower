@@ -26,12 +26,18 @@ generator_translation_dict = {
     '協和': ['協和'],
 }
 
+generator_translation_inverse_dict = {}
+for key, value in generator_translation_dict.items():
+    for v in value:
+        generator_translation_inverse_dict[v] = key
+
 hydro_powers = ['德基', '青山', '谷關', '天輪', '馬鞍', '萬大', '鉅工', 
                 '立霧', '龍澗', '卓蘭', '水里']
 generator_translation_dict.update({k: [k] for k in hydro_powers})
 
 
 def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_type=False, return_sql_df=False):
+
     date_str = datetime.datetime.strftime(date, '%Y-%m-%d')
     date_str_2nd_day = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y-%m-%d')
     conn = sqlite3.connect(sql_db_fn)
@@ -82,20 +88,20 @@ def get_full_oneday_power_df(sql_db_fn, date, day_only=False, integrate_power_ty
         pwd_gen_df.drop([('電池', '儲能(Energy Storage System)'), ('電池', '儲能負載(Energy Storage Load)')], axis=1, inplace=True)
 
     pwd_gen_df.columns = [col[0] for col in pwd_gen_df.columns]
-    for key, v in generator_translation_dict.items():
-        this_col_list = []
-        for col in pwd_gen_df.columns:
-            for this_indicator in v:
-                if this_indicator in col:
-                    this_col_list.append(col)
-                    break
+    translation_columns_dict = {key: [] for key in generator_translation_dict.keys()}
+    for col in pwd_gen_df.columns:
+        for col_key in generator_translation_inverse_dict.keys():
+            if col_key in col:
+                translation_columns_dict[generator_translation_inverse_dict[col_key]].append(col)
+                break
+    for key, this_col_list in translation_columns_dict.items():
         pwd_gen_df.loc[pwd_gen_df.index, key] = np.nansum(np.array(pwd_gen_df[this_col_list]), axis=1)
         pwd_gen_df = pwd_gen_df.drop(this_col_list, axis=1)
     
     time_list = list(pwd_gen_df['時間'])
     pwd_gen_df = pwd_gen_df.drop('時間', axis=1) / 10
     pwd_gen_df['時間'] = time_list
-    pwd_gen_df['日期'] = date_str.replace('-', '/')
+    pwd_gen_df['日期'] = date_str
     pwd_gen_df.rename({'總負載': '尖峰負載'}, axis=1, inplace=True)
     pwd_gen_df['尖峰負載'] *= 10
     return pwd_gen_df
