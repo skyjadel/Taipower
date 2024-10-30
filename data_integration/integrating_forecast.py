@@ -235,9 +235,11 @@ def arrange_forecast_for_towns(
     
     df_list = []
     for town in towns:
-        this_df = arrange_forecast_for_given_town(town, sql_db_path, historical_df=historical_df,
-                                                  sample_hr=sample_hr, forecast_times=forecast_times,
-                                                  least_integrate_days=least_integrate_days)
+        this_df = arrange_forecast_for_given_town(
+            town, sql_db_path, historical_df=historical_df,
+            sample_hr=sample_hr, forecast_times=forecast_times,
+            least_integrate_days=least_integrate_days
+            )
         if not this_df is None:
             df_list.append(this_df)
     return pd.concat(df_list, axis=0, ignore_index=True).reset_index(drop=True)
