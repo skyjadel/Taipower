@@ -35,6 +35,7 @@ weather_condition_encoding = {'晴': 0,
                               '短暫陣雨': 3,
                               '短暫陣雨或雷雨': 4,
                               '午後短暫雷陣雨': 5,
+                              #'陣雨': 6,
                               '陣雨或雷雨': 6}
 
 weather_condition_list = [k for k in weather_condition_encoding.keys()]
@@ -149,9 +150,14 @@ def assign_dict_values(this_row, this_dict, hour, col_name):
         return this_dict
     
     if col_name == '天氣狀況':
+        this_element = this_row[col_name].iloc[0]
+        if this_element == '陣雨':
+            this_element = '陣雨或雷雨'
+        if this_element == '短暫雨':
+            this_element = '短暫陣雨'
         for con in weather_condition_list:
             this_key = f'{con}_{hour}'
-            this_dict[this_key] = int(con == this_row[col_name].iloc[0])
+            this_dict[this_key] = int(con == this_element)
         return this_dict
     
     this_key = f'{col_name}_{hour}'
@@ -266,6 +272,6 @@ def main(sql_db_fn, historical_data_path, save_file=True, least_integrate_days=5
 if __name__ == '__main__':
     print('Start!')
     print(test_hd_path)
-    main(test_sql_fn, test_hd_path, save_file=False)
+    main(test_sql_fn, test_hd_path, save_file=True)
 
 

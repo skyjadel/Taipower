@@ -23,14 +23,22 @@ def get_weather_forecast(town_name):
     forecast_time_str = js_str[js_str.index('Updated:')+9:js_str.index('Updated:')+28]
     forecast_time = datetime.datetime.strptime(forecast_time_str, '%Y/%m/%d %H:%M:%S')
 
+    # #取得預報目標時間
+    # first_forecast_hr_str = js_str[js_str.index("Time_3hr")+18:js_str.index("Time_3hr")+26]
+    # forecasted_hrs = [datetime.datetime.strptime(f"{forecast_time_str.split('/')[0]}/{first_forecast_hr_str.split(' ')[1]} {first_forecast_hr_str.split(' ')[0]}:00:00",
+    #                   '%Y/%m/%d %H:%M:%S')]
     #取得預報目標時間
-    first_forecast_hr_str = js_str[js_str.index("Time_3hr")+18:js_str.index("Time_3hr")+26]
+    second_part = js_str.split('Time_3hr =')
+    for p in second_part[1].split('<br>'):
+        if int(p[-8:-6]) % 3 == 0:
+            first_forecast_hr_str = p[-8::]
+            break
     forecasted_hrs = [datetime.datetime.strptime(f"{forecast_time_str.split('/')[0]}/{first_forecast_hr_str.split(' ')[1]} {first_forecast_hr_str.split(' ')[0]}:00:00",
-                      '%Y/%m/%d %H:%M:%S')]
+                    '%Y/%m/%d %H:%M:%S')]
     for i in range(24):
         forecasted_hrs.append(forecasted_hrs[-1] + datetime.timedelta(hours=3))
     
-    six_hr = forecasted_hrs[0].hour % 6 == 0
+    #six_hr = forecasted_hrs[0].hour % 6 == 0
 
     #抓取預報資料
     time_now = datetime.datetime.now()
@@ -57,34 +65,105 @@ def get_weather_forecast(town_name):
     #組織預報資料
     table_rows = soup.find_all('tr')
 
-    this_row = table_rows[2]
-    for td in this_row.find_all('td'):
-        data['天氣狀況'].append(td.find('img').attrs['title'])
+    # this_row = table_rows[2]
+    # for td in this_row.find_all('td'):
+    #     data['天氣狀況'].append(td.find('img').attrs['title'])
     
-    this_row = table_rows[3]
-    for td in this_row.find_all('td'):
-        data['溫度'].append(int(td.find('span').text))
+    # this_row = table_rows[3]
+    # for td in this_row.find_all('td'):
+    #     data['溫度'].append(int(td.find('span').text))
     
-    this_row = table_rows[5]
-    for i, td in enumerate(this_row.find_all('td')):
-        this_pop = int(td.text[0:-1]) / 100
-        data['降雨機率'].append(this_pop)
-        if six_hr or (not i == 0):
-            data['降雨機率'].append(this_pop)
-        data['降雨機率'] = data['降雨機率'][0:len(forecasted_hrs)]
+    # this_row = table_rows[5]
+    # for i, td in enumerate(this_row.find_all('td')):
+    #     this_pop = int(td.text[0:-1]) / 100
+    #     data['降雨機率'].append(this_pop)
+    #     if six_hr or (not i == 0):
+    #         data['降雨機率'].append(this_pop)
+    #     data['降雨機率'] = data['降雨機率'][0:len(forecasted_hrs)]
     
-    this_row = table_rows[6]
-    for td in this_row.find_all('td'):
-        data['相對濕度'].append(int(td.text[0:-1]))
+    # this_row = table_rows[6]
+    # for td in this_row.find_all('td'):
+    #     data['相對濕度'].append(int(td.text[0:-1]))
     
-    this_row = table_rows[8]
-    for td in this_row.find_all('td'):
-        data['風速'].append(int(td.text.strip('≥')))
+    # this_row = table_rows[8]
+    # for td in this_row.find_all('td'):
+    #     data['風速'].append(int(td.text.strip('≥')))
     
-    this_row = table_rows[9]
-    for td in this_row.find_all('td'):
-        data['風向'].append(td.text)
-        
+    # this_row = table_rows[9]
+    # for td in this_row.find_all('td'):
+    #     data['風向'].append(td.text)
+
+    selected_columns = []
+    this_tds = [td for td in table_rows[1] if len(str(td)) > 2]
+    for i, td in enumerate(this_tds):
+        this_span = td.find('span')
+        if not (this_span == -1 or this_span is None):
+            if int(this_span.text.split(':')[0]) % 3 == 0:
+                selected_columns.append(i)
+    
+    this_tds = [td for td in table_rows[2] if len(str(td)) > 2]
+    for i, td in enumerate(this_tds):
+        if i in selected_columns:
+            data['溫度'].append(int(td.find('span').text))
+    
+    this_tds = [td for td in table_rows[4] if len(str(td)) > 2]
+    for i, td in enumerate(this_tds):
+        if i in selected_columns:
+            data['相對濕度'].append(int(td.text[0:-1]))
+    
+    this_tds = [td for td in table_rows[5] if len(str(td)) > 2]
+    this_column_idx = 0
+    for td in this_tds:
+        this_col_span = 1
+        if td.has_attr('colspan'):
+            this_col_span = int(td.attrs['colspan'])
+        for i in range(this_col_span):
+            if this_column_idx + i in selected_columns:
+                data['天氣狀況'].append(td.find('img').attrs['title'])
+                break
+        this_column_idx += this_col_span
+    
+    this_tds = [td for td in table_rows[6] if len(str(td)) > 2]
+    this_column_idx = 0
+    for td in this_tds:
+        this_col_span = 1
+        if td.has_attr('colspan'):
+            this_col_span = int(td.attrs['colspan'])
+        for i in range(this_col_span):
+            if this_column_idx + i in selected_columns:
+                data['降雨機率'].append(int(td.text[0:-1]) / 100)
+                break
+        this_column_idx += this_col_span
+    
+    this_tds = [td for td in table_rows[8] if len(str(td)) > 2]
+    this_column_idx = 0
+    for td in this_tds:
+        this_col_span = 1
+        if td.has_attr('colspan'):
+            this_col_span = int(td.attrs['colspan'])
+        for i in range(this_col_span):
+            if this_column_idx + i in selected_columns:
+                data['風速'].append(int(td.text.strip('≥')))
+                break
+        this_column_idx += this_col_span
+    
+    this_tds = [td for td in table_rows[9] if len(str(td)) > 2]
+    this_column_idx = 0
+    for td in this_tds:
+        this_col_span = 1
+        if td.has_attr('colspan'):
+            this_col_span = int(td.attrs['colspan'])
+        for i in range(this_col_span):
+            if this_column_idx + i in selected_columns:
+                data['風向'].append(td.text)
+                break
+        this_column_idx += this_col_span
+    
+    if len(data['鄉鎮市區']) > len(data['溫度']):
+        data['鄉鎮市區'] = data['鄉鎮市區'][0:len(data['溫度'])]
+        data['預測發布時間'] = data['預測發布時間'][0:len(data['溫度'])]
+        data['預測時間'] = data['預測時間'][0:len(data['溫度'])]
+
     return pd.DataFrame(data)
 
 # 執行 get_weather_forecast 並存入 SQL database

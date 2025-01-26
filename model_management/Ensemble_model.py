@@ -1,3 +1,6 @@
+from typing import Optional, Union, Tuple
+from numpy import ndarray
+from pandas import DataFrame
 import numpy as np
 import pandas as pd
 import os
@@ -14,7 +17,7 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 from Pytorch_models.metrics import Array_Metrics
 from Pytorch_models import models as pytorch_models
-from Pytorch_models import api
+from Pytorch_models.api import Model_API
 MAE = Array_Metrics.mae
 R2_score = Array_Metrics.r2
 
@@ -54,18 +57,26 @@ class Ensemble_Model():
     '''
 
     def __init__(
-            self, Y_feature, 
-            model_path=None, 
-            X_feature_dict=None, hyperparameters_dict=None, weights='uniform',
-            effective_station_list=effective_station_list,
-            data_path=None, start_date='2023-08-01', end_date='2024-09-30',
-            test_size=0.2, test_last_fold=False,
-            fit_wind_square=False,
-            apply_night_peak=False,
-            NP_external_model_path=None,
-            NP_X_feature_dict=None, NP_hyperparameters_dict=None, NP_weights=None,
-            remove_night_peak_samples=True,
-            is_NP_model=False
+            self,
+            Y_feature: str, 
+            model_path: Optional[float] = None, 
+            X_feature_dict: Optional[dict] = None,
+            hyperparameters_dict: Optional[dict] = None,
+            weights: Union[str, dict] = 'uniform',
+            effective_station_list: list = effective_station_list,
+            data_path: Optional[str] = None,
+            start_date: str = '2023-08-01',
+            end_date: str = '2024-09-30',
+            test_size: float = 0.2,
+            test_last_fold: bool = False,
+            fit_wind_square: bool = False,
+            apply_night_peak: bool = False,
+            NP_external_model_path: Optional[str] = None,
+            NP_X_feature_dict: Optional[dict] = None,
+            NP_hyperparameters_dict: Optional[dict] = None,
+            NP_weights: Union[str, dict, None] =None,
+            remove_night_peak_samples: bool = True,
+            is_NP_model: bool = False
             ):
 
         self.weather_features = ['氣溫', '最高氣溫', '最低氣溫', '風速', '全天空日射量', '總雲量', '東西風', '南北風']
@@ -138,7 +149,7 @@ class Ensemble_Model():
             self.create_affiliated_NP_model()    
 
 
-    def modify_hyperparameters_dict(self, hyperparameters_dict):
+    def modify_hyperparameters_dict(self, hyperparameters_dict: dict) -> dict:
         # 如果模型是 LightGBM, 加入參數阻止警告訊息出現
         if hyperparameters_dict is None:
             return None
@@ -148,7 +159,7 @@ class Ensemble_Model():
         return hyperparameters_dict
 
 
-    def create_affiliated_NP_model(self):
+    def create_affiliated_NP_model(self) -> "Ensemble_Model":
         # 如果 self.NP_external_model_path 指定的位置是一個有效 model，則讀取該路徑模型，否則新建一個
         if not self.NP_external_model_path is None:
             try:
@@ -160,6 +171,7 @@ class Ensemble_Model():
                 return None
             except:
                 self.NP_external_model_path = None
+
         self.Night_Peak_Model = Ensemble_Model(
             Y_feature='夜尖峰',
             X_feature_dict=self.NP_X_feature_dict,
@@ -173,7 +185,15 @@ class Ensemble_Model():
             )
 
     # Define Fully Connected Network Model
-    def FCN_model(self, input_f, output_f, feature_counts=[16, 16, 16, 8], feature_count_label=None, dropout_factor=0, L2_factor=1e-15, mode='regressor'):
+    def FCN_model(self,
+                  input_f: int,
+                  output_f: int,
+                  feature_counts: list = [16, 16, 16, 8],
+                  feature_count_label: Optional[str] = None,
+                  dropout_factor: float = 0,
+                  L2_factor: float = 1e-15,
+                  mode: str = 'regressor') -> Model_API:
+        
         feature_count_dict = {
             'A': [16, 16, 16, 8],
             'B': [24, 16, 16, 8]
@@ -189,11 +209,11 @@ class Ensemble_Model():
             model = pytorch_models.SimpleNN(input_f, output_f, feature_counts, dropout_factor)
         elif mode == 'classifier':
             model = pytorch_models.SimpleNN_classifier(input_f, output_f, feature_counts, dropout_factor)
-        Model_API = api.Model_API(model, L2_factor=L2_factor, classifier=(mode=='classifier'))
-        return Model_API
+        FCN_api = Model_API(model, L2_factor=L2_factor, classifier=(mode=='classifier'))
+        return FCN_api
 
 
-    def fill_nan(self, X):
+    def fill_nan(self, X: Union[ndarray, list]):
         nan_idx = np.where(np.isnan(X))
         for i in range(nan_idx[0].shape[0]):
             ri = nan_idx[0][i]
@@ -202,7 +222,7 @@ class Ensemble_Model():
         return X
 
 
-    def get_XY(self, data_df, Y_feature, X_features=None):
+    def get_XY(self, data_df: DataFrame, Y_feature: str, X_features: Optional[list[str]] = None) -> Tuple[ndarray, ndarray, list[str]]:
         # 定義 X 使用的欄位名
         station_list = self.station_list    
         X_cols = []
@@ -236,25 +256,25 @@ class Ensemble_Model():
         return Xs, Ys, X_cols
 
 
-    def get_train_and_test_index(self, n_samples, test_size=0.2, test_last_fold=False):
+    def get_train_and_test_index(self, n_samples: int, test_size: float = 0.2, test_last_fold: bool = False):
         shuffle = not test_last_fold
         train_idx, test_idx, _, _ = train_test_split(np.arange(n_samples), np.arange(n_samples), test_size=test_size, shuffle=shuffle)
         return train_idx, test_idx
 
 
-    def get_train_and_test_data(self, Xs, Ys, test_size=0.2, test_last_fold=False):
+    def get_train_and_test_data(self, Xs: ndarray, Ys: ndarray, test_size: float = 0.2, test_last_fold: bool = False):
         shuffle = not test_last_fold
         X_train, X_test, Y_train, Y_test = train_test_split(Xs, Ys, test_size=test_size, shuffle=shuffle)
         return X_train, X_test, Y_train, Y_test
 
 
-    def calculate_input_x_feature_num(self, model_label):
+    def calculate_input_x_feature_num(self, model_label: str) -> int:
         Y_feature = '太陽能' if self.Y_feature == '夜尖峰' else self.Y_feature
         Xs, _, _ = self.get_XY(self.data_df, Y_feature=Y_feature, X_features=self.X_feature_dict[model_label])
         return Xs.shape[1]
 
-
-    def assign_model(self, model_label):
+    # 回傳一個 sklearn, XGBoost, LightGBM, 或 Pytorch model 物件
+    def assign_model(self, model_label: str):
         # 如果模型是 Fully connected network, 就需要計算輸入特徵數量
         if model_label == 'FCN':
             input_f = self.calculate_input_x_feature_num(model_label)
@@ -267,11 +287,13 @@ class Ensemble_Model():
         # 其他狀況，如果 model_label 與 self.mode 的組合在字典裡找得到對應，則回傳對應模型，否則回報錯誤
         if self.mode in model_class_dict.keys():
             if model_label in model_class_dict[self.mode].keys():
-                return model_class_dict[self.mode][model_label](**self.hyperparameters_dict[model_label])
+                if model_label in ['SVC', 'SVR', 'NuSVC', 'NuSVR']:
+                    return model_class_dict[self.mode][model_label](**self.hyperparameters_dict[model_label])
+                return model_class_dict[self.mode][model_label](**self.hyperparameters_dict[model_label], n_jobs=-1)
         raise ValueError(f'model_label "{model_label}" is not in preset list.')
 
 
-    def save_model_metadata(self, file_path):
+    def save_model_metadata(self, file_path: str) -> None:
         output_dict = {
             'X_feature_dict':{},
             'hyperparameters_dict':{},
@@ -288,7 +310,7 @@ class Ensemble_Model():
             json.dump(output_dict, f)
 
 
-    def load_model_metadata(self, file_path):
+    def load_model_metadata(self, file_path: str) -> None:
         with open(file_path, 'r') as f:
             meta = json.load(f)
         self.X_feature_dict = meta['X_feature_dict']
@@ -299,13 +321,13 @@ class Ensemble_Model():
             self.fit_wind_square = meta['fit_wind_square']
 
 
-    def train_ML_model(self, model_label, X_train, Y_train):
+    def train_ML_model(self, model_label: str, X_train: ndarray, Y_train: ndarray) -> None:
         self.scalers[model_label] = StandardScaler().fit(X_train)
         X_train = self.scalers[model_label].transform(X_train)
         _ = self.models[model_label].fit(X_train, Y_train)
 
 
-    def train_DL_model(self, model_label, X_train, Y_train):
+    def train_DL_model(self, model_label: str, X_train: ndarray, Y_train: ndarray) -> None:
         X_train, X_val, Y_train, Y_val = self.get_train_and_test_data(X_train, Y_train, test_size=0.2, test_last_fold=False)
         self.scalers[model_label] = StandardScaler().fit(X_train)
         X_train = self.scalers[model_label].transform(X_train)
@@ -314,7 +336,7 @@ class Ensemble_Model():
         _ = self.models[model_label].fit(X_train, Y_train, X_val, Y_val)
 
 
-    def train(self):
+    def train(self) -> None:
         if not hasattr(self, 'train_ind'):
             self.train_ind, self.test_ind, _, _ = train_test_split(np.arange(self.data_df.shape[0]), np.arange(self.data_df.shape[0]), 
                                                                    test_size=self.test_size, shuffle=(not self.test_last_fold))
@@ -342,7 +364,7 @@ class Ensemble_Model():
             self.Night_Peak_Model.train()
 
 
-    def get_one_prediction(self, df, model_label, day_peak=1):
+    def get_one_prediction(self, df: DataFrame, model_label: str, day_peak: float = 1) -> ndarray:
         X = np.array(df[self.X_cols[model_label]])
         X = self.fill_nan(X)
         X = self.scalers[model_label].transform(X)
@@ -356,7 +378,7 @@ class Ensemble_Model():
         return Y_P
 
 
-    def predict(self, df, return_all_predictions=False, use_model='Ensemble'):
+    def predict(self, df: DataFrame, return_all_predictions: bool = False, use_model: str ='Ensemble') -> ndarray:
         Y_preds, weights = [], []
         if return_all_predictions:
             Y_predition_dict = {'date':list(df['日期'])}
@@ -397,7 +419,7 @@ class Ensemble_Model():
         raise ValueError(f'The string "{use_model}" is not included in the model labels. Select one from {list(self.model_labels)} or "Ensemble".')
 
 
-    def varify(self, return_var_df=False, var_df=None):
+    def varify(self, return_var_df: bool = False, var_df: bool = None) -> DataFrame:
         if var_df is None:
             var_df = self.data_df.iloc[self.test_ind].reset_index(drop=True)
         var_df = var_df[~var_df[self.Y_feature].isna()]
@@ -416,7 +438,7 @@ class Ensemble_Model():
         return result_df
 
 
-    def save_model(self, model_path):
+    def save_model(self, model_path: str) -> None:
         os.makedirs(model_path, exist_ok=True)
         self.save_model_metadata(model_path + 'meta.json')
         self.train_df.to_csv(model_path + 'training_set.csv', index=False, encoding='utf-8-sig')
@@ -447,7 +469,7 @@ class Ensemble_Model():
             self.Night_Peak_Model.save_model(NP_path)
 
 
-    def load_model(self, model_path):
+    def load_model(self, model_path: str) -> None:
 
         def get_list(filename):
             try:

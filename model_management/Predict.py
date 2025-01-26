@@ -1,15 +1,17 @@
 import pandas as pd
+from pandas import DataFrame
 import numpy as np
+#from datetime import datetime, timedelta
 import datetime
+from datetime import timedelta
 import os
 from copy import deepcopy
-
-from pandas import DataFrame
 
 from model_management.Ensemble_model import Ensemble_Model
 from utils.sun_light import calculate_all_day_sunlight
 from utils.holidays import *
-from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data, add_date_related_information, read_historical_forecast_data, get_period_agg_power
+from utils.prepare_data import read_historical_power_data, convert_weather_obseravtion_data,\
+      add_date_related_information, read_historical_forecast_data, get_period_agg_power
 from utils.station_info import *
 
 from Pytorch_models.metrics import Array_Metrics
@@ -35,14 +37,14 @@ aggregation_func_dict = {
 }
 
 
-def SunLightRate_to_SunFlux(rate, station, date):
+def SunLightRate_to_SunFlux(rate: float, station: str, date: datetime) -> float:
     site = site_location_dict[station]
     relative_sun_flux = calculate_all_day_sunlight(site, date)
     sun_flux = relative_sun_flux * rate * 2.5198 / 100 + 8.6888
     return sun_flux
 
 
-def convert_weather_df(weather_df, data_path=data_path):
+def convert_weather_df(weather_df: DataFrame, data_path: str =data_path) -> DataFrame:
     weather_df = convert_weather_obseravtion_data(weather_df)
     weather_df = add_date_related_information(weather_df, daytime_fn=data_path+'daytime/daytime.csv')
     power_df = read_historical_power_data(data_path + 'power/power_generation_data.csv')
@@ -51,7 +53,7 @@ def convert_weather_df(weather_df, data_path=data_path):
     return weather_df
 
 
-def convert_forecast_data(input_forecast_df):
+def convert_forecast_data(input_forecast_df: DataFrame) -> DataFrame:
     forecast_df = deepcopy(input_forecast_df)
     forecast_df['站名'] = [town_and_station[town] for town in forecast_df['鄉鎮']]
     
@@ -65,7 +67,7 @@ def convert_forecast_data(input_forecast_df):
 
 def predict_weather_features(model_path: str,
                              input_forecast_df: DataFrame,
-                             wind_speed_naive: bool = False):
+                             wind_speed_naive: bool = False) -> DataFrame:
     forecast_df = convert_forecast_data(input_forecast_df) 
     output_df = deepcopy(forecast_df[['日期', '站名']])
     
@@ -104,7 +106,7 @@ def predict_power_features(
         model_path: str,
         input_weather_df: DataFrame,
         data_path: str,
-        ):
+        ) -> DataFrame:
     weather_df = convert_weather_df(input_weather_df,
                                     data_path=data_path)
     output_df = deepcopy(weather_df[['日期']])
@@ -118,7 +120,7 @@ def predict_power_features(
     return output_df
 
 
-def evaluation(data_path=data_path, moving_mae_days=7):
+def evaluation(data_path: str =data_path, moving_mae_days: int =7) -> DataFrame:
     # 讀取正確答案與預測答案並合併成一張表
     power_df = read_historical_power_data(data_path + 'power/power_generation_data.csv')
     power_pred_df = pd.read_csv(data_path + 'prediction/power.csv')
@@ -155,7 +157,7 @@ def main_predict(
         avoid_training_set: bool = True,
         predict_weather_only: bool = False,
         wind_speed_naive: bool = False,
-):
+) -> DataFrame:
     '''主要的預測函數，會產生並儲存天氣與電力預測結果
     Arg:
         data_path (str, optional): 預測用資料路徑
@@ -177,13 +179,13 @@ def main_predict(
     
     # 決定從哪一天開始預測
     latest_date = max(forecast_df['日期'])
-    first_date = latest_date - datetime.timedelta(days=predict_days-1)
+    first_date = latest_date - timedelta(days=predict_days-1)
     if avoid_training_set:
         # 確保預測資料跟使用模型當初的訓練集不重複
         model_training_df = pd.read_csv(model_path + '太陽能/data.csv')
         model_training_df['日期'] = pd.to_datetime(model_training_df['日期'])
         model_last_date = max(model_training_df['日期'])
-        first_date = max(model_last_date + datetime.timedelta(days=1), first_date)
+        first_date = max(model_last_date + timedelta(days=1), first_date)
     forecast_df = forecast_df[forecast_df['日期'] >= first_date]
 
     # 定義當新舊資料重複時要留哪一個
@@ -239,7 +241,7 @@ def main_predict(
             ref_dict['預測項目'].append(y_feature)
             ref_dict['歷史平均'].append(np.mean(model_data_df[y_feature]))
             ref_dict['歷史標準差'].append(np.std(model_data_df[y_feature]))
-        ref_df = pd.DataFrame(ref_dict)
+        ref_df = DataFrame(ref_dict)
         ref_df.to_csv(ref_filename, index=False, encoding='utf-8-sig')
     
     return new_power_pred_df
